@@ -8,53 +8,26 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { DEMO_EXECUTION, DEMO_NODES, DEMO_SCENARIO } from "@/lib/demo/seed-data";
+import { getCurrentRun } from "@/lib/demo/selectors";
+import type {
+  DemoMetrics,
+  DemoNodeId,
+  DemoRun,
+  DemoStatus,
+  ExecutionRecord,
+  TraceTone,
+} from "@/lib/demo/types";
 
-export type DemoStatus = "idle" | "queued" | "running" | "success" | "error";
-
-export const DEMO_NODES = [
-  { id: "user", label: "User Request", agent: "—" },
-  { id: "planner", label: "Planner", agent: "Planner Agent" },
-  { id: "research", label: "Research", agent: "Research Agent" },
-  { id: "code", label: "Code", agent: "Code Agent" },
-  { id: "docs", label: "Documentation", agent: "Documentation Agent" },
-  { id: "qa", label: "QA", agent: "QA/Test Agent" },
-  { id: "reviewer", label: "Reviewer", agent: "Reviewer Agent" },
-  { id: "final", label: "Final Output", agent: "—" },
-] as const;
-
-export type DemoNodeId = (typeof DEMO_NODES)[number]["id"];
+export { DEMO_EXECUTION, DEMO_NODES };
+export type { DemoNodeId, DemoRun, DemoStatus, ExecutionRecord };
 
 export interface DemoLog {
   ts: string;
   agent: string;
   message: string;
-  tone: "info" | "success" | "warn" | "error";
+  tone: TraceTone;
 }
-
-// Centralized record for any completed run. Swap this for a real execution
-// engine later — both Dashboard and Debugger read from `completedExecutions`.
-export interface ExecutionRecord {
-  id: string;
-  workflow: string;
-  status: "success" | "running" | "error";
-  duration: string;
-  tokens: number;
-  cost: number;
-  started: string;
-  isDemo?: boolean;
-}
-
-// Stable values for the canned demo run so multiple surfaces stay consistent.
-export const DEMO_EXECUTION: ExecutionRecord = {
-  id: "exec_8a22",
-  workflow: "Demo Run · all agents",
-  status: "success",
-  duration: "58s",
-  tokens: 68420,
-  cost: 1.24,
-  started: "just now",
-  isDemo: true,
-};
 
 interface DemoState {
   isRunning: boolean;
@@ -62,14 +35,9 @@ interface DemoState {
   currentIndex: number;
   statuses: Record<DemoNodeId, DemoStatus>;
   logs: DemoLog[];
-  metrics: {
-    executions: number;
-    tokens: number;
-    cost: number;
-    successRate: number;
-    latency: number;
-  };
+  metrics: DemoMetrics;
   completedExecutions: ExecutionRecord[];
+  currentRun: DemoRun;
   lastCompletedId: string | null;
   start: () => void;
   reset: () => void;
@@ -81,36 +49,6 @@ const initialStatuses = Object.fromEntries(DEMO_NODES.map((n) => [n.id, "idle"])
   DemoNodeId,
   DemoStatus
 >;
-
-const stepMessages: Record<DemoNodeId, { msg: string; tone: DemoLog["tone"] }[]> = {
-  user: [{ msg: "Goal received: Create API documentation for payments service", tone: "info" }],
-  planner: [
-    { msg: "Decomposing goal into 6 subtasks", tone: "info" },
-    { msg: "Dependency graph built · routed to 5 agents", tone: "success" },
-  ],
-  research: [
-    { msg: "RAG retrieve openapi://payments@v4.2 · 0.94 similarity", tone: "info" },
-    { msg: "Retrieved 14 context chunks (1,284 tokens)", tone: "success" },
-  ],
-  code: [
-    { msg: "Scanning /api/payments/* route handlers", tone: "info" },
-    { msg: "Found 12 endpoints · extracted Zod schemas", tone: "success" },
-  ],
-  docs: [
-    { msg: "Drafting markdown reference v1", tone: "info" },
-    { msg: "ToolTimeoutError schema_to_md > 2500ms · retry in 600ms", tone: "warn" },
-    { msg: "Draft v2 complete · 18.4KB markdown", tone: "success" },
-  ],
-  qa: [
-    { msg: "Running checklist · 14 items", tone: "info" },
-    { msg: "QA passed 14/14 · added error-code table", tone: "success" },
-  ],
-  reviewer: [
-    { msg: "Style guide v3.2 enforced · 3 micro edits", tone: "info" },
-    { msg: "Approved · risk = low", tone: "success" },
-  ],
-  final: [{ msg: "Artifact published · payments-api-v4.2.md", tone: "success" }],
-};
 
 export function DemoProvider({ children }: { children: ReactNode }) {
   const [isRunning, setIsRunning] = useState(false);
@@ -165,7 +103,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             return next;
           });
           const ts = new Date().toLocaleTimeString([], { hour12: false });
-          const entries = stepMessages[node.id];
+          const entries = DEMO_SCENARIO.stepMessages[node.id];
           entries.forEach((e, j) => {
             timers.current.push(
               setTimeout(() => {
@@ -208,7 +146,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => () => clearTimers(), []);
 
-  const value = useMemo<DemoState>(
+  const snapshot = useMemo(
     () => ({
       isRunning,
       isComplete,
@@ -218,8 +156,6 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       metrics,
       completedExecutions,
       lastCompletedId,
-      start,
-      reset,
     }),
     [
       isRunning,
@@ -230,9 +166,19 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       metrics,
       completedExecutions,
       lastCompletedId,
+    ],
+  );
+
+  const currentRun = useMemo(() => getCurrentRun(snapshot), [snapshot]);
+
+  const value = useMemo<DemoState>(
+    () => ({
+      ...snapshot,
+      currentRun,
       start,
       reset,
-    ],
+    }),
+    [snapshot, currentRun, start, reset],
   );
 
   return <DemoCtx.Provider value={value}>{children}</DemoCtx.Provider>;

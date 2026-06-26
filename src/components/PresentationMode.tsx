@@ -12,7 +12,6 @@ import {
 import { closePresentation, usePresentation } from "@/lib/presentation-store";
 import { useDemo, DEMO_NODES } from "@/lib/demo-context";
 import { StatBadge, StatusDot } from "@/components/ui/page";
-import { FINAL_OUTPUT_TITLE } from "@/lib/final-output";
 
 const slides = [
   { id: "problem", title: "The Problem", icon: Sparkles },
@@ -183,11 +182,12 @@ function ArchSlide() {
 
 function WorkflowSlide() {
   const demo = useDemo();
+  const currentRun = demo.currentRun;
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold">Goal · Create API documentation</div>
+          <div className="text-sm font-semibold">Goal · {currentRun.goal}</div>
           <div className="text-xs text-muted-foreground">
             Watch planner, research, code, docs, QA, and reviewer agents coordinate one artifact.
           </div>
@@ -234,22 +234,22 @@ function WorkflowSlide() {
           <div className="text-xs text-muted-foreground">Press Replay to start the workflow.</div>
         ) : (
           <div className="space-y-1 font-mono text-[11px]">
-            {demo.logs.map((l, i) => (
-              <div key={i} className="flex gap-2">
-                <span className="text-muted-foreground">[{l.ts}]</span>
-                <span className="text-[var(--electric)]">{l.agent}</span>
+            {currentRun.traceEvents.map((event) => (
+              <div key={event.id} className="flex gap-2">
+                <span className="text-muted-foreground">[{event.ts}]</span>
+                <span className="text-[var(--electric)]">{event.agent}</span>
                 <span
                   className={
-                    l.tone === "error"
+                    event.tone === "error"
                       ? "text-[var(--destructive)]"
-                      : l.tone === "warn"
+                      : event.tone === "warn"
                         ? "text-[var(--amber)]"
-                        : l.tone === "success"
+                        : event.tone === "success"
                           ? "text-[var(--emerald)]"
                           : "text-muted-foreground"
                   }
                 >
-                  {l.message}
+                  {event.message}
                 </span>
               </div>
             ))}
@@ -261,6 +261,8 @@ function WorkflowSlide() {
 }
 
 function DebugSlide() {
+  const demo = useDemo();
+  const artifact = demo.currentRun.finalArtifact;
   return (
     <div className="rounded-2xl glass p-6">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -279,7 +281,7 @@ function DebugSlide() {
       <pre className="mt-4 rounded-lg bg-black/50 border border-border/60 p-4 text-xs font-mono text-muted-foreground whitespace-pre-wrap overflow-x-auto">{`attempt 1: ToolTimeoutError schema_to_md > 2500ms
 backoff:    600ms (exponential, jitter ±15%)
 attempt 2:  ok in 2410ms
-result:     ${FINAL_OUTPUT_TITLE} v1.0 (18.4KB)`}</pre>
+result:     ${artifact.title} v1.0 (${artifact.sizeLabel})`}</pre>
       <div className="mt-4 grid sm:grid-cols-3 gap-3 text-xs">
         <Stat k="Total steps" v="7" />
         <Stat k="Retries" v="1" />

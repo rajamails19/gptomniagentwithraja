@@ -4,11 +4,6 @@ import { Play, RotateCcw, Rewind, FileText, Bug, CheckCircle2 } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { PageHeader, Panel, StatBadge, StatusDot } from "@/components/ui/page";
 import { DEMO_NODES, useDemo, type DemoNodeId } from "@/lib/demo-context";
-import {
-  FINAL_OUTPUT_FILENAME,
-  FINAL_OUTPUT_MARKDOWN,
-  FINAL_OUTPUT_TITLE,
-} from "@/lib/final-output";
 import { CopyButton } from "@/components/CopyButton";
 
 export const Route = createFileRoute("/workflow")({
@@ -59,6 +54,7 @@ function edgePath(a: { x: number; y: number }, b: { x: number; y: number }) {
 
 function WorkflowPage() {
   const demo = useDemo();
+  const currentRun = demo.currentRun;
   const [activeId, setActiveId] = useState<DemoNodeId>("planner");
   const [showOutput, setShowOutput] = useState(false);
   const active = DEMO_NODES.find((n) => n.id === activeId)!;
@@ -104,7 +100,7 @@ function WorkflowPage() {
         <Panel className="p-0 overflow-hidden">
           <div className="border-b border-border/60 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <div className="text-sm font-semibold">Payments API documentation run</div>
+              <div className="text-sm font-semibold">{currentRun.goal}</div>
               <div className="text-xs text-muted-foreground">
                 Planner routes work across research, code, docs, QA, and reviewer agents.
               </div>
@@ -261,7 +257,9 @@ function WorkflowPage() {
               <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                 Execution timeline
               </div>
-              <div className="text-[10px] text-muted-foreground">{demo.logs.length} events</div>
+              <div className="text-[10px] text-muted-foreground">
+                {currentRun.traceEvents.length} events
+              </div>
             </div>
             <div className="flex items-center gap-1 overflow-x-auto pb-1">
               {DEMO_NODES.map((n, i) => {
@@ -396,9 +394,10 @@ function WorkflowPage() {
                 <FileText className="h-4 w-4 text-[var(--cyan)]" />
               </div>
               <div>
-                <div className="text-sm font-semibold">{FINAL_OUTPUT_TITLE}</div>
+                <div className="text-sm font-semibold">{currentRun.finalArtifact.title}</div>
                 <div className="text-xs text-muted-foreground font-mono">
-                  {FINAL_OUTPUT_FILENAME} · 18.4 KB · approved by Reviewer
+                  {currentRun.finalArtifact.filename} · {currentRun.finalArtifact.sizeLabel} ·
+                  approved by {currentRun.finalArtifact.approvedBy}
                 </div>
               </div>
             </div>
@@ -406,12 +405,12 @@ function WorkflowPage() {
               <StatBadge tone="success">
                 <CheckCircle2 className="h-3 w-3" /> QA 14/14 passed
               </StatBadge>
-              <CopyButton text={FINAL_OUTPUT_MARKDOWN} />
+              <CopyButton text={currentRun.finalArtifact.markdown} />
               <StatBadge tone="info">Preview artifact</StatBadge>
             </div>
           </div>
           <pre className="mt-4 rounded-xl bg-black/50 border border-border/60 p-4 text-[11.5px] font-mono leading-relaxed text-muted-foreground whitespace-pre-wrap overflow-x-auto max-h-[420px] overflow-y-auto">
-            {FINAL_OUTPUT_MARKDOWN}
+            {currentRun.finalArtifact.markdown}
           </pre>
         </Panel>
       )}

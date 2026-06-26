@@ -4,11 +4,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader, Panel, StatBadge, StatusDot } from "@/components/ui/page";
 import { debugSteps, recentExecutions } from "@/lib/mock-data";
 import { CopyButton } from "@/components/CopyButton";
-import {
-  FINAL_OUTPUT_FILENAME,
-  FINAL_OUTPUT_MARKDOWN,
-  FINAL_OUTPUT_TITLE,
-} from "@/lib/final-output";
 import { useDemo, DEMO_EXECUTION } from "@/lib/demo-context";
 import { AlertTriangle, FileText, RefreshCw, GitBranch } from "lucide-react";
 
@@ -28,6 +23,7 @@ export const Route = createFileRoute("/debugger")({
 
 function DebuggerPage() {
   const demo = useDemo();
+  const currentRun = demo.currentRun;
   // Centralized execution list — completed demo runs surface here automatically.
   const executions = useMemo(
     () => [...demo.completedExecutions, ...recentExecutions],
@@ -259,18 +255,18 @@ recovered:  true`}</CodeBlock>
                 <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 bg-white/[0.03]">
                   <div className="flex items-center gap-2 text-xs min-w-0">
                     <FileText className="h-3.5 w-3.5 text-[var(--cyan)]" />
-                    <span className="font-medium truncate">{FINAL_OUTPUT_TITLE}</span>
+                    <span className="font-medium truncate">{currentRun.finalArtifact.title}</span>
                     <span className="text-muted-foreground font-mono">
-                      · {FINAL_OUTPUT_FILENAME}
+                      · {currentRun.finalArtifact.filename}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <StatBadge tone="success">QA 14/14</StatBadge>
-                    <CopyButton text={FINAL_OUTPUT_MARKDOWN} />
+                    <CopyButton text={currentRun.finalArtifact.markdown} />
                   </div>
                 </div>
                 <pre className="p-4 text-[11.5px] font-mono leading-relaxed text-muted-foreground whitespace-pre-wrap overflow-x-auto max-h-[420px] overflow-y-auto">
-                  {FINAL_OUTPUT_MARKDOWN}
+                  {currentRun.finalArtifact.markdown}
                 </pre>
               </div>
             </TabsContent>

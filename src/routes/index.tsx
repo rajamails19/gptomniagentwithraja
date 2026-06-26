@@ -58,6 +58,7 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const demo = useDemo();
+  const currentRun = demo.currentRun;
   const executionsRef = useRef<HTMLDivElement | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const prevCompletedId = useRef<string | null>(null);
@@ -264,22 +265,22 @@ function Dashboard() {
                   Waiting for the first agent event...
                 </div>
               ) : (
-                demo.logs.slice(-6).map((l, i) => (
-                  <div key={i} className="flex gap-2">
-                    <span className="text-muted-foreground">[{l.ts}]</span>
-                    <span className="text-[var(--electric)]">{l.agent}</span>
+                currentRun.traceEvents.slice(-6).map((event) => (
+                  <div key={event.id} className="flex gap-2">
+                    <span className="text-muted-foreground">[{event.ts}]</span>
+                    <span className="text-[var(--electric)]">{event.agent}</span>
                     <span
                       className={
-                        l.tone === "warn"
+                        event.tone === "warn"
                           ? "text-[var(--amber)]"
-                          : l.tone === "success"
+                          : event.tone === "success"
                             ? "text-[var(--emerald)]"
-                            : l.tone === "error"
+                            : event.tone === "error"
                               ? "text-[var(--destructive)]"
                               : "text-muted-foreground"
                       }
                     >
-                      {l.message}
+                      {event.message}
                     </span>
                   </div>
                 ))
@@ -630,9 +631,11 @@ function Dashboard() {
                     </td>
                     <td className="text-xs tabular-nums">live</td>
                     <td className="text-right tabular-nums text-xs">
-                      {(demo.metrics.tokens % 100000).toLocaleString()}
+                      {currentRun.costSummary.totalTokens.toLocaleString()}
                     </td>
-                    <td className="text-right tabular-nums text-xs">$0.41</td>
+                    <td className="text-right tabular-nums text-xs">
+                      ${currentRun.costSummary.totalCost.toFixed(2)}
+                    </td>
                     <td className="text-right text-xs text-muted-foreground">just now</td>
                     <td className="text-right pl-3">
                       <Link
