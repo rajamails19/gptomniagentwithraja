@@ -2,7 +2,15 @@ import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-export function CopyButton({ text, className }: { text: string; className?: string }) {
+export function CopyButton({
+  text,
+  className,
+  label = "Copy",
+}: {
+  text: string;
+  className?: string;
+  label?: string;
+}) {
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -22,7 +30,7 @@ export function CopyButton({ text, className }: { text: string; className?: stri
       )}
     >
       {copied ? <Check className="h-3 w-3 text-[var(--emerald)]" /> : <Copy className="h-3 w-3" />}
-      {copied ? "Copied" : "Copy"}
+      {copied ? "Copied" : label}
     </button>
   );
 }

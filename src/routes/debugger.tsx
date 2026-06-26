@@ -5,7 +5,7 @@ import { PageHeader, Panel, StatBadge, StatusDot } from "@/components/ui/page";
 import { recentExecutions } from "@/lib/mock-data";
 import { CopyButton } from "@/components/CopyButton";
 import { useDemo, DEMO_EXECUTION, type DemoNodeId } from "@/lib/demo-context";
-import { AlertTriangle, FileText, RefreshCw, GitBranch } from "lucide-react";
+import { AlertTriangle, Download, FileText, RefreshCw, GitBranch } from "lucide-react";
 
 export const Route = createFileRoute("/debugger")({
   head: () => ({
@@ -39,7 +39,47 @@ function DebuggerPage() {
   const stepTraceEvents = currentRun.traceEvents.filter((event) => event.stepId === step.id);
   const stepToolCalls = currentRun.toolCalls.filter((toolCall) => toolCall.stepId === step.id);
   const primaryToolCall = stepToolCalls[0];
+  const retryEvents = stepTraceEvents.filter(
+    (event) => event.type === "retry" || event.tone === "warn" || event.tone === "error",
+  );
   const failed = step.status === "retried" || step.status === "failed";
+  const tracePayload = useMemo(
+    () => ({
+      run: {
+        id: currentRun.id,
+        scenarioId: currentRun.scenarioId,
+        goal: currentRun.goal,
+        status: currentRun.status,
+        currentStepId: currentRun.currentStepId,
+      },
+      selectedStep: {
+        id: step.id,
+        label: step.label,
+        agent: step.agent,
+        model: step.model,
+        status: step.status,
+        prompt: step.promptSummary,
+        input: step.inputSummary,
+        memoryContext: step.memoryContext,
+        latencyMs: step.latencyMs,
+        tokens: step.tokens,
+        cost: step.cost,
+        outputSummary: step.outputSummary,
+      },
+      traceEvents: stepTraceEvents,
+      toolCalls: stepToolCalls,
+      finalArtifact: {
+        title: currentRun.finalArtifact.title,
+        filename: currentRun.finalArtifact.filename,
+        status: currentRun.finalArtifact.status,
+        approvedBy: currentRun.finalArtifact.approvedBy,
+        sizeLabel: currentRun.finalArtifact.sizeLabel,
+      },
+    }),
+    [currentRun, step, stepToolCalls, stepTraceEvents],
+  );
+  const traceJson = useMemo(() => JSON.stringify(tracePayload, null, 2), [tracePayload]);
+  const artifactSummary = `${currentRun.finalArtifact.title} (${currentRun.finalArtifact.filename}) · ${currentRun.finalArtifact.status} by ${currentRun.finalArtifact.approvedBy} · ${currentRun.finalArtifact.sizeLabel}. ${step.outputSummary}`;
 
   return (
     <div className="space-y-6">
@@ -183,8 +223,62 @@ function DebuggerPage() {
           </div>
 
           <div className="mb-4 rounded-xl border border-border/60 bg-white/[0.03] p-3 text-xs text-muted-foreground">
-            This panel shows why the output is trustworthy: each step exposes the model prompt, tool
-            result, memory access, retry handling, and final artifact.
+            This proof screen demonstrates observability, auditability, and governance: every
+            selected step exposes the agent, model, prompt, tool evidence, memory context, retry
+            handling, cost, latency, and approved artifact trail.
+          </div>
+
+          <div className="mb-4 flex flex-wrap gap-2">
+            <CopyButton text={traceJson} label="Copy trace" />
+            <button
+              type="button"
+              onClick={() => downloadJson(`${currentRun.id}-${step.id}-trace.json`, traceJson)}
+              className="inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-[11px] font-medium bg-white/5 border border-border/60 hover:bg-white/10 transition"
+            >
+              <Download className="h-3 w-3" />
+              Export trace JSON
+            </button>
+            <CopyButton text={artifactSummary} label="Copy artifact summary" />
+          </div>
+
+          <div className="mb-4 grid grid-cols-2 lg:grid-cols-6 gap-2">
+            <Mini label="Agent" value={step.agent} />
+            <Mini label="Model" value={step.model} />
+            <Mini label="Status" value={step.status} />
+            <Mini label="Latency" value={`${step.latencyMs}ms`} />
+            <Mini label="Tokens" value={step.tokens.toLocaleString()} />
+            <Mini label="Cost" value={`$${step.cost.toFixed(2)}`} />
+          </div>
+
+          <div className="mb-4 rounded-xl border border-border/60 bg-black/20 p-3">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Matching workflow evidence
+            </div>
+            <div className="mt-2 space-y-2">
+              {stepTraceEvents.length > 0 ? (
+                stepTraceEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className="flex items-start justify-between gap-3 rounded-lg bg-white/[0.03] px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium">{event.message}</div>
+                      <div className="mt-0.5 text-[11px] text-muted-foreground">
+                        {event.agent} · {event.type}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right text-[10px] text-muted-foreground tabular-nums">
+                      <div>{event.latencyMs ? `${event.latencyMs}ms` : "queued"}</div>
+                      <div>{event.cost ? `$${event.cost.toFixed(2)}` : "$0.00"}</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-lg bg-white/[0.03] px-3 py-2 text-xs text-muted-foreground">
+                  Trace evidence appears here as this workflow step starts and completes.
+                </div>
+              )}
+            </div>
           </div>
 
           {failed && (
@@ -228,54 +322,83 @@ function DebuggerPage() {
             </TabsList>
 
             <TabsContent value="prompt">
-              <CodeBlock>{`SYSTEM: You are the Documentation Agent.
-USER: Draft markdown reference for endpoints in payments-svc.
-CONTEXT: {
-  "schema_id": "openapi://payments@v4.2",
-  "style_guide": "v3.2"
-}`}</CodeBlock>
+              <CodeBlock>{`AGENT: ${step.agent}
+MODEL: ${step.model}
+PROMPT: ${step.promptSummary}
+INPUT: ${step.inputSummary}
+STATUS: ${step.status}`}</CodeBlock>
             </TabsContent>
 
             <TabsContent value="response">
               <CodeBlock>{`{
-  "draft": "# Payments API\\n\\n## POST /payments/intents\\n...",
-  "needs": ["error_table", "idempotency_note"]
+  "step": "${step.label}",
+  "agent": "${step.agent}",
+  "status": "${step.status}",
+  "output_summary": "${step.outputSummary}"
 }`}</CodeBlock>
             </TabsContent>
 
             <TabsContent value="tool">
-              <CodeBlock>{`tool: ${primaryToolCall?.tool ?? "waiting_for_step"}
+              <CodeBlock>
+                {stepToolCalls.length > 0
+                  ? stepToolCalls
+                      .map(
+                        (toolCall) => `tool: ${toolCall.tool}
+status: ${toolCall.status}
 args: {
   "step": "${step.id}",
-  "input": "${primaryToolCall?.inputSummary ?? "Tool evidence appears when this step runs."}"
-}`}</CodeBlock>
+  "input": "${toolCall.inputSummary}"
+}`,
+                      )
+                      .join("\n\n")
+                  : `tool: waiting_for_step
+args: {
+  "step": "${step.id}",
+  "input": "Tool evidence appears when this step runs."
+}`}
+              </CodeBlock>
             </TabsContent>
 
             <TabsContent value="result">
-              <CodeBlock>{`{
-  "ok": ${primaryToolCall ? primaryToolCall.status !== "error" : false},
-  "latency_ms": ${primaryToolCall?.latencyMs ?? 0},
-  "summary": "${primaryToolCall?.outputSummary ?? "No tool result for this step yet."}"
-}`}</CodeBlock>
+              <CodeBlock>
+                {stepToolCalls.length > 0
+                  ? JSON.stringify(
+                      stepToolCalls.map((toolCall) => ({
+                        ok: toolCall.status !== "error",
+                        tool: toolCall.tool,
+                        status: toolCall.status,
+                        latency_ms: toolCall.latencyMs,
+                        result_summary: toolCall.outputSummary,
+                      })),
+                      null,
+                      2,
+                    )
+                  : JSON.stringify(
+                      {
+                        ok: false,
+                        step: step.id,
+                        summary: "No tool result for this step yet.",
+                      },
+                      null,
+                      2,
+                    )}
+              </CodeBlock>
             </TabsContent>
 
             <TabsContent value="memory">
-              <CodeBlock>{`reads: [
-  "payments_arch_v3", "style_guide_v3.2", "openapi_payments_v4.2"
-]
-writes: [
-  "draft:payments_docs:v1"
-]`}</CodeBlock>
+              <CodeBlock>{`memory_context: ${JSON.stringify(step.memoryContext, null, 2)}
+governance_note: "Context is scoped to the selected workflow step and included in exported trace evidence."
+write_summary: "${step.outputSummary}"`}</CodeBlock>
             </TabsContent>
 
             <TabsContent value="error">
               <CodeBlock>{`step:      ${step.label}
 status:    ${step.status}
 events:    ${stepTraceEvents.length}
-attempt 1: ${step.id === "docs" ? "ToolTimeoutError schema_to_md exceeded 2500ms" : "not required"}
-backoff:    600ms (exponential, jitter ±15%)
-attempt 2:  ${step.id === "docs" ? "ok in 2410ms" : "not required"}
-recovered:  ${step.id === "docs"}`}</CodeBlock>
+retry_events:
+${retryEvents.length > 0 ? retryEvents.map((event) => `- ${event.message}`).join("\n") : "- none"}
+primary_tool: ${primaryToolCall?.tool ?? "not required"}
+recovered:  ${retryEvents.length > 0 && step.status !== "failed"}`}</CodeBlock>
             </TabsContent>
 
             <TabsContent value="final">
@@ -290,7 +413,7 @@ recovered:  ${step.id === "docs"}`}</CodeBlock>
                   </div>
                   <div className="flex items-center gap-2">
                     <StatBadge tone="success">QA 14/14</StatBadge>
-                    <CopyButton text={currentRun.finalArtifact.markdown} />
+                    <CopyButton text={currentRun.finalArtifact.markdown} label="Copy markdown" />
                   </div>
                 </div>
                 <pre className="p-4 text-[11.5px] font-mono leading-relaxed text-muted-foreground whitespace-pre-wrap overflow-x-auto max-h-[420px] overflow-y-auto">
@@ -303,6 +426,16 @@ recovered:  ${step.id === "docs"}`}</CodeBlock>
       </div>
     </div>
   );
+}
+
+function downloadJson(filename: string, payload: string) {
+  const blob = new Blob([payload], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function Mini({ label, value }: { label: string; value: string }) {

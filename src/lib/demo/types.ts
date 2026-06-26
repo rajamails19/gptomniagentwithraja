@@ -28,6 +28,11 @@ export interface WorkflowStep {
   kind: "input" | "agent" | "output";
   order: number;
   description: string;
+  model: string;
+  promptSummary: string;
+  inputSummary: string;
+  memoryContext: string[];
+  outputSummary: string;
   latencyMs: number;
   tokens: number;
   cost: number;
