@@ -69,6 +69,7 @@ export interface CostSummary {
   totalTokens: number;
   estimatedManualHours: string;
   modelSavingsPercent: number;
+  latencyMs: number;
 }
 
 export interface FinalArtifact {
@@ -107,8 +108,14 @@ export interface DemoRun extends ExecutionRecord {
 export interface DemoScenario {
   id: string;
   name: string;
+  title: string;
   goal: string;
   description: string;
+  businessObjective: string;
+  initialUserRequest: string;
+  plannerOutput: string;
+  presentationFocus: string;
+  successMetrics: Array<{ label: string; value: string }>;
   agents: Agent[];
   steps: WorkflowStep[];
   toolCalls: ToolCall[];
@@ -137,6 +144,7 @@ export interface DemoMetrics {
 }
 
 export interface DemoRuntimeSnapshot {
+  scenario: DemoScenario;
   isRunning: boolean;
   isComplete: boolean;
   currentIndex: number;

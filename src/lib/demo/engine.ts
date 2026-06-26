@@ -1,7 +1,7 @@
-import { DEMO_RUN_ID, DEMO_SCENARIO } from "./seed-data";
 import type {
   DemoEngineRuntime,
   DemoNodeId,
+  DemoScenario,
   DemoStatus,
   DemoTimelineAction,
   ToolCall,
@@ -14,11 +14,11 @@ const STEP_DELAY_MS = 1100;
 const TRACE_OFFSET_MS = 220;
 const RUN_COMPLETE_OFFSET_MS = 200;
 
-export function createInitialEngineRuntime(): DemoEngineRuntime {
+export function createInitialEngineRuntime(scenario: DemoScenario): DemoEngineRuntime {
   return {
     currentIndex: -1,
-    statuses: createStatuses("idle"),
-    stepRuns: createStepRuns(),
+    statuses: createStatuses(scenario, "idle"),
+    stepRuns: createStepRuns(scenario),
     traceEvents: [],
     visibleToolCalls: [],
     runCost: 0,
@@ -26,30 +26,30 @@ export function createInitialEngineRuntime(): DemoEngineRuntime {
   };
 }
 
-export function createQueuedEngineRuntime(): DemoEngineRuntime {
+export function createQueuedEngineRuntime(scenario: DemoScenario): DemoEngineRuntime {
   return {
-    ...createInitialEngineRuntime(),
-    statuses: createStatuses("queued"),
-    stepRuns: createStepRuns("pending"),
+    ...createInitialEngineRuntime(scenario),
+    statuses: createStatuses(scenario, "queued"),
+    stepRuns: createStepRuns(scenario, "pending"),
   };
 }
 
-export function createScenarioTimeline(): DemoTimelineAction[] {
+export function createScenarioTimeline(scenario: DemoScenario): DemoTimelineAction[] {
   const actions: DemoTimelineAction[] = [];
 
-  DEMO_SCENARIO.steps.forEach((step, index) => {
+  scenario.steps.forEach((step, index) => {
     const stepStart = index * STEP_DELAY_MS;
     actions.push({ at: stepStart, type: "step:start", stepId: step.id });
 
-    const messages = DEMO_SCENARIO.stepMessages[step.id];
+    const messages = scenario.stepMessages[step.id];
     messages.forEach((message, messageIndex) => {
       actions.push({
         at: stepStart + messageIndex * TRACE_OFFSET_MS,
         type: "trace:add",
         stepId: step.id,
         traceEvent: {
-          id: `${DEMO_RUN_ID}-${step.id}-${messageIndex + 1}`,
-          runId: DEMO_RUN_ID,
+          id: `${scenario.executionRecord.id}-${step.id}-${messageIndex + 1}`,
+          runId: scenario.executionRecord.id,
           stepId: step.id,
           ts: "00:00:00",
           agent: step.agent,
@@ -71,7 +71,7 @@ export function createScenarioTimeline(): DemoTimelineAction[] {
   });
 
   actions.push({
-    at: DEMO_SCENARIO.steps.length * STEP_DELAY_MS + RUN_COMPLETE_OFFSET_MS,
+    at: scenario.steps.length * STEP_DELAY_MS + RUN_COMPLETE_OFFSET_MS,
     type: "run:complete",
   });
 
@@ -79,12 +79,13 @@ export function createScenarioTimeline(): DemoTimelineAction[] {
 }
 
 export function applyTimelineAction(
+  scenario: DemoScenario,
   runtime: DemoEngineRuntime,
   action: DemoTimelineAction,
   timestamp: string,
 ): DemoEngineRuntime {
   if (action.type === "step:start" && action.stepId) {
-    const stepIndex = DEMO_SCENARIO.steps.findIndex((step) => step.id === action.stepId);
+    const stepIndex = scenario.steps.findIndex((step) => step.id === action.stepId);
     return {
       ...runtime,
       currentIndex: stepIndex,
@@ -100,7 +101,9 @@ export function applyTimelineAction(
 
   if (action.type === "trace:add" && action.traceEvent) {
     const traceEvent = { ...action.traceEvent, ts: timestamp };
-    const toolCall = traceEvent.toolCallId ? getToolCall(traceEvent.toolCallId) : undefined;
+    const toolCall = traceEvent.toolCallId
+      ? getToolCall(scenario, traceEvent.toolCallId)
+      : undefined;
 
     return {
       ...runtime,
@@ -110,7 +113,7 @@ export function applyTimelineAction(
   }
 
   if (action.type === "step:complete" && action.stepId) {
-    const completedStatus = getCompletedStepStatus(action.stepId);
+    const completedStatus = getCompletedStepStatus(scenario, action.stepId);
     return {
       ...runtime,
       statuses: {
@@ -126,8 +129,8 @@ export function applyTimelineAction(
             }
           : step,
       ),
-      runCost: getCompletedCost(runtime, action.stepId),
-      runTokens: getCompletedTokens(runtime, action.stepId),
+      runCost: getCompletedCost(scenario, runtime, action.stepId),
+      runTokens: getCompletedTokens(scenario, runtime, action.stepId),
     };
   }
 
@@ -138,45 +141,60 @@ export function applyTimelineAction(
         ...runtime.statuses,
         final: "success",
       },
-      runCost: DEMO_SCENARIO.costSummary.totalCost,
-      runTokens: DEMO_SCENARIO.costSummary.totalTokens,
+      runCost: scenario.costSummary.totalCost,
+      runTokens: scenario.costSummary.totalTokens,
     };
   }
 
   return runtime;
 }
 
-function createStatuses(status: DemoStatus): Record<DemoNodeId, DemoStatus> {
-  return Object.fromEntries(DEMO_SCENARIO.steps.map((step) => [step.id, status])) as Record<
+function createStatuses(
+  scenario: DemoScenario,
+  status: DemoStatus,
+): Record<DemoNodeId, DemoStatus> {
+  return Object.fromEntries(scenario.steps.map((step) => [step.id, status])) as Record<
     DemoNodeId,
     DemoStatus
   >;
 }
 
-function createStepRuns(status: WorkflowStepStatus = "pending"): WorkflowStepRun[] {
-  return DEMO_SCENARIO.steps.map((step) => ({
+function createStepRuns(
+  scenario: DemoScenario,
+  status: WorkflowStepStatus = "pending",
+): WorkflowStepRun[] {
+  return scenario.steps.map((step) => ({
     ...step,
-    runId: DEMO_RUN_ID,
+    runId: scenario.executionRecord.id,
     status,
   }));
 }
 
-function getCompletedStepStatus(stepId: DemoNodeId): WorkflowStepStatus {
-  return stepId === "docs" ? "retried" : "completed";
+function getCompletedStepStatus(scenario: DemoScenario, stepId: DemoNodeId): WorkflowStepStatus {
+  const hasRetry = scenario.stepMessages[stepId].some((message) => message.type === "retry");
+  return hasRetry ? "retried" : "completed";
 }
 
-function getCompletedCost(runtime: DemoEngineRuntime, stepId: DemoNodeId): number {
-  const step = DEMO_SCENARIO.steps.find((item) => item.id === stepId);
+function getCompletedCost(
+  scenario: DemoScenario,
+  runtime: DemoEngineRuntime,
+  stepId: DemoNodeId,
+): number {
+  const step = scenario.steps.find((item) => item.id === stepId);
   return +(runtime.runCost + (step?.cost ?? 0)).toFixed(2);
 }
 
-function getCompletedTokens(runtime: DemoEngineRuntime, stepId: DemoNodeId): number {
-  const step = DEMO_SCENARIO.steps.find((item) => item.id === stepId);
+function getCompletedTokens(
+  scenario: DemoScenario,
+  runtime: DemoEngineRuntime,
+  stepId: DemoNodeId,
+): number {
+  const step = scenario.steps.find((item) => item.id === stepId);
   return runtime.runTokens + (step?.tokens ?? 0);
 }
 
-function getToolCall(toolCallId: string): ToolCall | undefined {
-  return DEMO_SCENARIO.toolCalls.find((toolCall) => toolCall.id === toolCallId);
+function getToolCall(scenario: DemoScenario, toolCallId: string): ToolCall | undefined {
+  return scenario.toolCalls.find((toolCall) => toolCall.id === toolCallId);
 }
 
 function addVisibleToolCall(toolCalls: ToolCall[], toolCall?: ToolCall): ToolCall[] {

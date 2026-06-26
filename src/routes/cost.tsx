@@ -13,6 +13,7 @@ import {
 import { Lightbulb, TrendingDown } from "lucide-react";
 import { PageHeader, Panel, StatBadge } from "@/components/ui/page";
 import { costByAgent, costByWorkflow, monthlyCost } from "@/lib/mock-data";
+import { useDemo } from "@/lib/demo-context";
 
 export const Route = createFileRoute("/cost")({
   head: () => ({
@@ -36,6 +37,19 @@ const tt = {
 };
 
 function CostPage() {
+  const demo = useDemo();
+  const scenario = demo.selectedScenario;
+  const scenarioWorkflowCost = demo.scenarios.map((item) => ({
+    name: item.title.replace(" Generation", "").replace("Investigation", "IR"),
+    cost: item.costSummary.totalCost,
+  }));
+  const scenarioAgentCost = scenario.steps
+    .filter((step) => step.kind === "agent")
+    .map((step) => ({
+      name: step.label,
+      cost: step.cost,
+    }));
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -44,10 +58,19 @@ function CostPage() {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi k="Today" v="$184.20" delta="+12%" />
-        <Kpi k="Month-to-date" v="$3,842" delta="+8%" />
-        <Kpi k="Projected month" v="$5,210" delta="-4% vs last" tone="success" />
-        <Kpi k="Cost / success" v="$0.024" delta="-$0.003" tone="success" />
+        <Kpi k="Scenario cost" v={`$${scenario.costSummary.totalCost.toFixed(2)}`} delta="demo" />
+        <Kpi
+          k="Tokens"
+          v={`${(scenario.costSummary.totalTokens / 1000).toFixed(1)}K`}
+          delta="est."
+        />
+        <Kpi k="Latency" v={`${(scenario.costSummary.latencyMs / 1000).toFixed(0)}s`} delta="run" />
+        <Kpi
+          k="Model savings"
+          v={`${scenario.costSummary.modelSavingsPercent}%`}
+          delta="vs baseline"
+          tone="success"
+        />
       </div>
 
       <Panel>
@@ -82,7 +105,10 @@ function CostPage() {
           <div className="text-sm font-semibold">Cost by workflow</div>
           <div className="h-64 mt-3">
             <ResponsiveContainer>
-              <BarChart data={costByWorkflow} layout="vertical">
+              <BarChart
+                data={scenarioWorkflowCost.length ? scenarioWorkflowCost : costByWorkflow}
+                layout="vertical"
+              >
                 <CartesianGrid stroke="oklch(1 0 0 / 0.05)" horizontal={false} />
                 <XAxis
                   type="number"
@@ -110,7 +136,7 @@ function CostPage() {
           <div className="text-sm font-semibold">Cost by agent</div>
           <div className="h-64 mt-3">
             <ResponsiveContainer>
-              <BarChart data={costByAgent}>
+              <BarChart data={scenarioAgentCost.length ? scenarioAgentCost : costByAgent}>
                 <CartesianGrid stroke="oklch(1 0 0 / 0.05)" vertical={false} />
                 <XAxis
                   dataKey="name"

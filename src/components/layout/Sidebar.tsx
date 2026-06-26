@@ -54,17 +54,23 @@ export function Sidebar() {
             <Link
               key={item.to}
               to={item.to}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all relative",
+                "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-[background,color,transform,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 active
-                  ? "bg-gradient-to-r from-[oklch(0.72_0.18_250/0.18)] to-[oklch(0.68_0.22_295/0.12)] text-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-white/5",
+                  ? "bg-gradient-to-r from-[oklch(0.72_0.18_250/0.18)] to-[oklch(0.68_0.22_295/0.12)] text-foreground shadow-[inset_0_1px_0_oklch(1_0_0/0.05)]"
+                  : "text-muted-foreground hover:translate-x-0.5 hover:bg-white/5 hover:text-foreground",
               )}
             >
               {active && (
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-full bg-gradient-to-b from-[var(--electric)] to-[var(--violet)]" />
               )}
-              <Icon className={cn("h-4 w-4", active && "text-[var(--electric)]")} />
+              <Icon
+                className={cn(
+                  "h-4 w-4 transition-colors duration-200",
+                  active ? "text-[var(--electric)]" : "group-hover:text-[var(--cyan)]",
+                )}
+              />
               <span className="font-medium tracking-tight">{item.label}</span>
             </Link>
           );

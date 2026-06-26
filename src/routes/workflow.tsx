@@ -2,9 +2,26 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Play, RotateCcw, Rewind, FileText, Bug, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHeader, Panel, StatBadge, StatusDot } from "@/components/ui/page";
-import { DEMO_NODES, useDemo, type DemoNodeId } from "@/lib/demo-context";
+import {
+  EmptyState,
+  PageHeader,
+  Panel,
+  StatBadge,
+  StatusBadge,
+  StatusDot,
+} from "@/components/ui/page";
+import { useDemo, type DemoNodeId } from "@/lib/demo-context";
 import { CopyButton } from "@/components/CopyButton";
+import {
+  AGENT_PHASES,
+  getAgentConversation,
+  getAgentPhaseIndex,
+  getAgentScores,
+  getDecisionCards,
+  getExecutionSummary,
+  getMemoryUsage,
+  getToolEvidence,
+} from "@/lib/demo/intelligence";
 
 export const Route = createFileRoute("/workflow")({
   head: () => ({
@@ -57,8 +74,15 @@ function WorkflowPage() {
   const currentRun = demo.currentRun;
   const [activeId, setActiveId] = useState<DemoNodeId>("planner");
   const [showOutput, setShowOutput] = useState(false);
-  const active = DEMO_NODES.find((n) => n.id === activeId)!;
+  const active = currentRun.stepRuns.find((n) => n.id === activeId) ?? currentRun.stepRuns[1];
   const activeStatus = demo.statuses[activeId];
+  const activePhase = getAgentPhaseIndex(active);
+  const activeScores = getAgentScores(active);
+  const memoryUsage = getMemoryUsage(active);
+  const toolEvidence = getToolEvidence(currentRun.toolCalls, active);
+  const decisions = getDecisionCards(currentRun);
+  const conversation = getAgentConversation(currentRun);
+  const summary = getExecutionSummary(currentRun);
 
   return (
     <div className="space-y-6">
@@ -171,7 +195,7 @@ function WorkflowPage() {
                 );
               })}
 
-              {DEMO_NODES.map((n) => {
+              {currentRun.stepRuns.map((n) => {
                 const p = POSITIONS[n.id];
                 const s = demo.statuses[n.id];
                 const isActive = activeId === n.id;
@@ -197,7 +221,16 @@ function WorkflowPage() {
                     key={n.id}
                     transform={`translate(${p.x - NODE_W / 2}, ${p.y - NODE_H / 2})`}
                     style={{ cursor: "pointer" }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Select ${n.label} workflow node`}
                     onClick={() => setActiveId(n.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setActiveId(n.id);
+                      }
+                    }}
                   >
                     <rect
                       width={NODE_W}
@@ -262,7 +295,7 @@ function WorkflowPage() {
               </div>
             </div>
             <div className="flex items-center gap-1 overflow-x-auto pb-1">
-              {DEMO_NODES.map((n, i) => {
+              {currentRun.stepRuns.map((n, i) => {
                 const s = demo.statuses[n.id];
                 const reached = s === "running" || s === "success";
                 return (
@@ -284,7 +317,7 @@ function WorkflowPage() {
                       />
                       <span className="font-medium">{n.label}</span>
                     </button>
-                    {i < DEMO_NODES.length - 1 && (
+                    {i < currentRun.stepRuns.length - 1 && (
                       <div
                         className={`h-px w-4 ${reached ? "bg-[var(--electric)]/60" : "bg-border"}`}
                       />
@@ -304,19 +337,7 @@ function WorkflowPage() {
               </div>
               <div className="mt-1 text-lg font-semibold">{active.label}</div>
             </div>
-            <StatBadge
-              tone={
-                activeStatus === "success"
-                  ? "success"
-                  : activeStatus === "running"
-                    ? "info"
-                    : activeStatus === "error"
-                      ? "error"
-                      : "default"
-              }
-            >
-              {activeStatus}
-            </StatBadge>
+            <StatusBadge status={activeStatus} />
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
             {active.agent === "—"
@@ -326,17 +347,108 @@ function WorkflowPage() {
 
           <div className="mt-4 space-y-2.5 text-sm">
             <Field label="Status" value={activeStatus} />
-            <Field label="Latency" value={activeStatus === "idle" ? "—" : "820ms"} />
-            <Field label="Tokens" value={activeStatus === "idle" ? "—" : "1,248"} />
-            <Field label="Cost" value={activeStatus === "idle" ? "—" : "$0.04"} />
+            <Field
+              label="Latency"
+              value={activeStatus === "idle" ? "—" : `${active.latencyMs}ms`}
+            />
+            <Field
+              label="Tokens"
+              value={activeStatus === "idle" ? "—" : active.tokens.toLocaleString()}
+            />
+            <Field
+              label="Cost"
+              value={activeStatus === "idle" ? "—" : `$${active.cost.toFixed(2)}`}
+            />
             <Field
               label="Retries"
               value={
-                active.id === "docs" && (activeStatus === "success" || activeStatus === "running")
+                active.status === "retried" || (active.id === "docs" && activeStatus === "running")
                   ? "1"
                   : "0"
               }
             />
+          </div>
+
+          <div className="mt-4">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
+              Agent thinking timeline
+            </div>
+            <div className="grid gap-1.5">
+              {AGENT_PHASES.map((phase, index) => (
+                <div
+                  key={phase}
+                  className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px] ${
+                    index === activePhase
+                      ? "bg-[var(--electric)]/10 text-foreground"
+                      : index < activePhase
+                        ? "bg-[var(--emerald)]/5 text-muted-foreground"
+                        : "bg-white/[0.025] text-muted-foreground/70"
+                  }`}
+                >
+                  <StatusDot
+                    status={
+                      index === activePhase && active.status === "running"
+                        ? "running"
+                        : index < activePhase
+                          ? "success"
+                          : "idle"
+                    }
+                  />
+                  {phase}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Mini label="Confidence" value={`${activeScores.confidence}%`} />
+            <Mini label="Risk" value={activeScores.risk} />
+            <Mini label="Quality" value={`${activeScores.quality}%`} />
+            <Mini label="Tool reliability" value={`${activeScores.toolReliability}%`} />
+          </div>
+
+          <div className="mt-4 grid gap-2">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Memory usage
+            </div>
+            <MemoryRow label="Retrieved" items={memoryUsage.retrieved} />
+            <MemoryRow label="New" items={memoryUsage.newMemories} />
+            <MemoryRow label="Updated" items={memoryUsage.updatedMemories} />
+            <MemoryRow label="Skipped" items={memoryUsage.skippedMemories} />
+          </div>
+
+          <div className="mt-4">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-1.5">
+              Tool usage
+            </div>
+            {toolEvidence.length > 0 ? (
+              <div className="space-y-2">
+                {toolEvidence.map((tool) => (
+                  <div
+                    key={tool.id}
+                    className="rounded-lg border border-border/60 bg-white/[0.03] p-2"
+                  >
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="font-mono text-[var(--cyan)]">{tool.tool}</span>
+                      <StatusBadge status={tool.status === "retry" ? "retrying" : tool.status} />
+                    </div>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      Input: {tool.inputSummary}
+                    </div>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      Output: {tool.outputSummary}
+                    </div>
+                    <div className="mt-1 text-[10px] text-muted-foreground">
+                      Duration: {tool.latencyMs}ms
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-border/60 bg-white/[0.03] p-2 text-[11px] text-muted-foreground">
+                Tool evidence appears when this agent calls an approved tool.
+              </div>
+            )}
           </div>
 
           <div className="mt-4 text-[10px] uppercase tracking-[0.16em] text-muted-foreground flex items-center justify-between">
@@ -377,13 +489,69 @@ function WorkflowPage() {
                 </div>
               ))}
             {demo.logs.filter((l) => l.agent === active.agent).length === 0 && (
-              <div className="text-[11px] text-muted-foreground">
-                No events for this node yet. Select another node or run the workflow.
-              </div>
+              <EmptyState
+                title="No node events yet."
+                description="Run the workflow or select an agent that has already executed to inspect its recent log events."
+              />
             )}
           </div>
         </Panel>
       </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <Panel>
+          <div className="text-sm font-semibold">Inter-agent conversation</div>
+          <div className="mt-3 space-y-2">
+            {conversation.map((item) => (
+              <div
+                key={`${item.agent}-${item.message}`}
+                className="rounded-lg border border-border/60 bg-white/[0.03] p-3"
+              >
+                <div className="text-xs font-semibold text-[var(--cyan)]">{item.agent}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{item.message}</div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel>
+          <div className="text-sm font-semibold">Decision cards</div>
+          <div className="mt-3 grid gap-2">
+            {decisions.map((decision) => (
+              <div
+                key={decision.title}
+                className="rounded-lg border border-border/60 bg-white/[0.03] p-3"
+              >
+                <div className="text-xs font-semibold">{decision.title}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{decision.body}</div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </div>
+
+      {(demo.isComplete || currentRun.traceEvents.length > 0) && (
+        <Panel>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-sm font-semibold">Execution summary</div>
+              <div className="text-xs text-muted-foreground">
+                Deterministic run summary for {demo.selectedScenario.title}
+              </div>
+            </div>
+            <StatusBadge status={summary.finalStatus === "Approved" ? "approved" : "running"} />
+          </div>
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
+            <Mini label="Agents used" value={String(summary.agentsUsed)} />
+            <Mini label="Tool calls" value={String(summary.toolCalls)} />
+            <Mini label="Execution time" value={summary.executionTime} />
+            <Mini label="Total cost" value={summary.totalCost} />
+            <Mini label="Retries" value={String(summary.retries)} />
+            <Mini label="Quality" value={summary.quality} />
+            <Mini label="Final status" value={summary.finalStatus} />
+          </div>
+        </Panel>
+      )}
 
       {/* Final output */}
       {(demo.isComplete || showOutput) && (
@@ -423,6 +591,37 @@ function Field({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between text-xs">
       <span className="text-muted-foreground capitalize">{label}</span>
       <span className="font-semibold capitalize">{value}</span>
+    </div>
+  );
+}
+
+function Mini({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-white/[0.03] px-2.5 py-2">
+      <div className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
+      <div className="text-xs font-semibold tabular-nums truncate">{value}</div>
+    </div>
+  );
+}
+
+function MemoryRow({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-white/[0.03] p-2">
+      <div className="text-[10px] font-semibold text-muted-foreground">{label}</div>
+      <div className="mt-1 flex flex-wrap gap-1">
+        {items.length > 0 ? (
+          items.map((item) => (
+            <span
+              key={item}
+              className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground"
+            >
+              {item}
+            </span>
+          ))
+        ) : (
+          <span className="text-[10px] text-muted-foreground">None</span>
+        )}
+      </div>
     </div>
   );
 }

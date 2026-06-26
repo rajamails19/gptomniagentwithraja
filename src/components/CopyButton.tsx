@@ -25,7 +25,7 @@ export function CopyButton({
         }
       }}
       className={cn(
-        "inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-[11px] font-medium bg-white/5 border border-border/60 hover:bg-white/10 transition",
+        "inline-flex h-7 items-center gap-1.5 rounded-md border border-border/60 bg-white/5 px-2 text-[11px] font-medium transition-[background,border-color,transform] duration-200 hover:-translate-y-px hover:bg-white/10 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         className,
       )}
     >

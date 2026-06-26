@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { DEMO_EXECUTION, DEMO_NODES } from "@/lib/demo/seed-data";
+import { DEFAULT_SCENARIO_ID, DEMO_SCENARIOS, getDemoScenario } from "@/lib/demo/seed-data";
 import { getCurrentRun } from "@/lib/demo/selectors";
 import {
   applyTimelineAction,
@@ -21,13 +21,22 @@ import type {
   DemoMetrics,
   DemoNodeId,
   DemoRun,
+  DemoScenario,
   DemoStatus,
   ExecutionRecord,
   TraceTone,
 } from "@/lib/demo/types";
 
-export { DEMO_EXECUTION, DEMO_NODES };
-export type { DemoNodeId, DemoRun, DemoStatus, ExecutionRecord };
+export const DEMO_EXECUTION = getDemoScenario(DEFAULT_SCENARIO_ID).executionRecord;
+export const DEMO_NODES = getDemoScenario(DEFAULT_SCENARIO_ID).steps.map(
+  ({ id, label, agent }) => ({
+    id,
+    label,
+    agent,
+  }),
+);
+export { DEMO_SCENARIOS };
+export type { DemoNodeId, DemoRun, DemoScenario, DemoStatus, ExecutionRecord };
 
 export interface DemoLog {
   ts: string;
@@ -46,6 +55,10 @@ interface DemoState {
   completedExecutions: ExecutionRecord[];
   currentRun: DemoRun;
   lastCompletedId: string | null;
+  scenarios: DemoScenario[];
+  selectedScenarioId: string;
+  selectedScenario: DemoScenario;
+  selectScenario: (scenarioId: string) => void;
   start: () => void;
   reset: () => void;
 }
@@ -53,10 +66,12 @@ interface DemoState {
 const DemoCtx = createContext<DemoState | null>(null);
 
 export function DemoProvider({ children }: { children: ReactNode }) {
+  const [selectedScenarioId, setSelectedScenarioId] = useState(DEFAULT_SCENARIO_ID);
+  const selectedScenario = useMemo(() => getDemoScenario(selectedScenarioId), [selectedScenarioId]);
   const [isRunning, setIsRunning] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [engineRuntime, setEngineRuntime] = useState<DemoEngineRuntime>(() =>
-    createInitialEngineRuntime(),
+    createInitialEngineRuntime(getDemoScenario(DEFAULT_SCENARIO_ID)),
   );
   const [metrics, setMetrics] = useState({
     executions: 12847,
@@ -78,7 +93,17 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     clearTimers();
     setIsRunning(false);
     setIsComplete(false);
-    setEngineRuntime(createInitialEngineRuntime());
+    setEngineRuntime(createInitialEngineRuntime(selectedScenario));
+  }, [selectedScenario]);
+
+  const selectScenario = useCallback((scenarioId: string) => {
+    const scenario = getDemoScenario(scenarioId);
+    clearTimers();
+    setSelectedScenarioId(scenario.id);
+    setIsRunning(false);
+    setIsComplete(false);
+    setLastCompletedId(null);
+    setEngineRuntime(createInitialEngineRuntime(scenario));
   }, []);
 
   const start = useCallback(() => {
@@ -86,14 +111,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     setIsRunning(true);
     setIsComplete(false);
     setLastCompletedId(null);
-    setEngineRuntime(createQueuedEngineRuntime());
+    setEngineRuntime(createQueuedEngineRuntime(selectedScenario));
 
-    createScenarioTimeline().forEach((action) => {
+    createScenarioTimeline(selectedScenario).forEach((action) => {
       timers.current.push(
         setTimeout(() => {
           const ts = new Date().toLocaleTimeString([], { hour12: false });
 
-          setEngineRuntime((runtime) => applyTimelineAction(runtime, action, ts));
+          setEngineRuntime((runtime) => applyTimelineAction(selectedScenario, runtime, action, ts));
 
           if (action.type === "step:complete") {
             setMetrics((m) => ({
@@ -109,21 +134,22 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             setIsRunning(false);
             setIsComplete(true);
             setCompletedExecutions((prev) =>
-              prev.some((e) => e.id === DEMO_EXECUTION.id)
+              prev.some((e) => e.id === selectedScenario.executionRecord.id)
                 ? prev
-                : [{ ...DEMO_EXECUTION }, ...prev],
+                : [{ ...selectedScenario.executionRecord }, ...prev],
             );
-            setLastCompletedId(DEMO_EXECUTION.id);
+            setLastCompletedId(selectedScenario.executionRecord.id);
           }
         }, action.at),
       );
     });
-  }, []);
+  }, [selectedScenario]);
 
   useEffect(() => () => clearTimers(), []);
 
   const snapshot = useMemo(
     () => ({
+      scenario: selectedScenario,
       isRunning,
       isComplete,
       currentIndex: engineRuntime.currentIndex,
@@ -139,7 +165,15 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       lastCompletedId,
       engineRuntime,
     }),
-    [isRunning, isComplete, engineRuntime, metrics, completedExecutions, lastCompletedId],
+    [
+      selectedScenario,
+      isRunning,
+      isComplete,
+      engineRuntime,
+      metrics,
+      completedExecutions,
+      lastCompletedId,
+    ],
   );
 
   const currentRun = useMemo(() => getCurrentRun(snapshot), [snapshot]);
@@ -148,10 +182,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     () => ({
       ...snapshot,
       currentRun,
+      scenarios: DEMO_SCENARIOS,
+      selectedScenarioId,
+      selectedScenario,
+      selectScenario,
       start,
       reset,
     }),
-    [snapshot, currentRun, start, reset],
+    [snapshot, currentRun, selectedScenarioId, selectedScenario, selectScenario, start, reset],
   );
 
   return <DemoCtx.Provider value={value}>{children}</DemoCtx.Provider>;

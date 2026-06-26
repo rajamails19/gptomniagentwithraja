@@ -37,10 +37,19 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Panel, StatBadge, StatusDot } from "@/components/ui/page";
+import {
+  EmptyState,
+  LoadingState,
+  Panel,
+  StatBadge,
+  StatusBadge,
+  StatusDot,
+} from "@/components/ui/page";
 import { agents, dashboardSeries, modelBreakdown, recentExecutions } from "@/lib/mock-data";
-import { DEMO_NODES, useDemo } from "@/lib/demo-context";
+import { useDemo } from "@/lib/demo-context";
 import { Button } from "@/components/ui/button";
+import { getHealth, getScenarios, type ApiHealth } from "@/lib/api/client";
+import type { ApiScenario } from "@/lib/api/schemas";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -61,6 +70,8 @@ function Dashboard() {
   const currentRun = demo.currentRun;
   const executionsRef = useRef<HTMLDivElement | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [apiHealth, setApiHealth] = useState<ApiHealth | null>(null);
+  const [apiScenarios, setApiScenarios] = useState<ApiScenario[] | null>(null);
   const prevCompletedId = useRef<string | null>(null);
 
   // When a new run finishes, scroll to the table and pulse the new row for 2s.
@@ -79,6 +90,26 @@ function Dashboard() {
       };
     }
   }, [demo.lastCompletedId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getHealth(), getScenarios()])
+      .then(([health, scenarios]) => {
+        if (cancelled) return;
+        setApiHealth(health);
+        setApiScenarios(scenarios);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setApiHealth(null);
+        setApiScenarios(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const scenarioOptions = apiScenarios ?? demo.scenarios;
 
   const stats = [
     {
@@ -146,8 +177,13 @@ function Dashboard() {
               <StatBadge tone="info">
                 <Zap className="h-3 w-3" /> Live
               </StatBadge>
+              <StatBadge tone={apiHealth?.ok ? "success" : "warn"}>
+                API {apiHealth?.ok ? "online" : "fallback"}
+              </StatBadge>
               <span className="text-xs text-muted-foreground">
-                Updated 2s ago · Dev environment
+                {apiHealth
+                  ? `${apiHealth.mode} backend · ${apiHealth.scenarioCount} scenarios`
+                  : "Using local deterministic scenario data"}
               </span>
             </div>
             <h2 className="mt-3 text-2xl lg:text-3xl font-semibold tracking-tight">
@@ -161,6 +197,18 @@ function Dashboard() {
               run production-grade workflows.
             </p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
+              <select
+                value={demo.selectedScenarioId}
+                onChange={(event) => demo.selectScenario(event.target.value)}
+                aria-label="Choose demo scenario"
+                className="h-10 max-w-full rounded-lg border border-border/60 bg-white/5 px-3 text-sm text-foreground transition hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/55"
+              >
+                {scenarioOptions.map((scenario) => (
+                  <option key={scenario.id} value={scenario.id} className="bg-popover">
+                    {"title" in scenario ? scenario.title : scenario.name}
+                  </option>
+                ))}
+              </select>
               {demo.isRunning ? (
                 <Button
                   onClick={demo.reset}
@@ -193,7 +241,7 @@ function Dashboard() {
                 </Link>
               </Button>
               <span className="text-xs text-muted-foreground">
-                User → Planner → Research → Code → Docs → QA → Reviewer → Final
+                Scenario: {demo.selectedScenario.title}
               </span>
             </div>
           </div>
@@ -232,7 +280,7 @@ function Dashboard() {
               </StatBadge>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-              {DEMO_NODES.map((n, i) => {
+              {currentRun.stepRuns.map((n, i) => {
                 const s = demo.statuses[n.id];
                 return (
                   <div
@@ -261,9 +309,7 @@ function Dashboard() {
             </div>
             <div className="mt-3 max-h-32 overflow-auto font-mono text-[11px] space-y-0.5">
               {demo.logs.length === 0 ? (
-                <div className="rounded-lg border border-border/60 bg-white/[0.03] p-3 text-muted-foreground">
-                  Waiting for the first agent event...
-                </div>
+                <LoadingState label="Waiting for the first agent event" />
               ) : (
                 currentRun.traceEvents.slice(-6).map((event) => (
                   <div key={event.id} className="flex gap-2">
@@ -295,7 +341,10 @@ function Dashboard() {
         {stats.map((s) => {
           const Icon = s.icon;
           return (
-            <div key={s.label} className="rounded-xl glass p-4">
+            <div
+              key={s.label}
+              className="rounded-xl glass p-4 transition-[border-color,transform,background] duration-200 hover:-translate-y-px hover:border-white/15"
+            >
               <div className="flex items-center justify-between">
                 <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                   {s.label}
@@ -569,7 +618,7 @@ function Dashboard() {
           <div className="text-xs text-muted-foreground">Top 6 by recent activity</div>
           <div className="mt-3 space-y-2.5">
             {agents.slice(0, 6).map((a) => {
-              const matching = DEMO_NODES.find((n) => n.agent === a.name);
+              const matching = currentRun.stepRuns.find((n) => n.agent === a.name);
               const liveStatus = matching ? demo.statuses[matching.id] : undefined;
               const status =
                 liveStatus && liveStatus !== "idle"
@@ -604,6 +653,19 @@ function Dashboard() {
             </div>
             <StatBadge tone="info">Live tail</StatBadge>
           </div>
+          {demo.completedExecutions.length === 0 && !demo.isRunning && (
+            <div className="mb-4">
+              <EmptyState
+                title="No demo executions yet."
+                description="Run your first workflow to generate an execution trace, debugger evidence, and a final artifact."
+                action={
+                  <Button size="sm" onClick={demo.start}>
+                    <Play className="h-3.5 w-3.5" /> Run Demo Workflow
+                  </Button>
+                }
+              />
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -625,8 +687,7 @@ function Dashboard() {
                     <td className="font-medium">Demo Run · all agents</td>
                     <td>
                       <span className="inline-flex items-center gap-1.5">
-                        <StatusDot status="running" />
-                        <span className="capitalize text-xs">running</span>
+                        <StatusBadge status="running" />
                       </span>
                     </td>
                     <td className="text-xs tabular-nums">live</td>
@@ -658,8 +719,7 @@ function Dashboard() {
                       <td className="font-medium">{e.workflow}</td>
                       <td>
                         <span className="inline-flex items-center gap-1.5">
-                          <StatusDot status={e.status} />
-                          <span className="capitalize text-xs">{e.status}</span>
+                          <StatusBadge status={e.status} />
                         </span>
                       </td>
                       <td className="text-xs tabular-nums">{e.duration}</td>
@@ -685,8 +745,7 @@ function Dashboard() {
                     <td className="font-medium">{e.workflow}</td>
                     <td>
                       <span className="inline-flex items-center gap-1.5">
-                        <StatusDot status={e.status} />
-                        <span className="capitalize text-xs">{e.status}</span>
+                        <StatusBadge status={e.status} />
                       </span>
                     </td>
                     <td className="text-xs tabular-nums">{e.duration}</td>

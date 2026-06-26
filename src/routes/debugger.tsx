@@ -1,11 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PageHeader, Panel, StatBadge, StatusDot } from "@/components/ui/page";
+import {
+  EmptyState,
+  PageHeader,
+  Panel,
+  StatBadge,
+  StatusBadge,
+  StatusDot,
+} from "@/components/ui/page";
 import { recentExecutions } from "@/lib/mock-data";
 import { CopyButton } from "@/components/CopyButton";
-import { useDemo, DEMO_EXECUTION, type DemoNodeId } from "@/lib/demo-context";
+import { useDemo, type DemoNodeId } from "@/lib/demo-context";
 import { AlertTriangle, Download, FileText, RefreshCw, GitBranch } from "lucide-react";
+import { toast } from "sonner";
+import { getAgentScores, getDecisionCards, getMemoryUsage } from "@/lib/demo/intelligence";
 
 export const Route = createFileRoute("/debugger")({
   head: () => ({
@@ -25,15 +34,15 @@ function DebuggerPage() {
   const demo = useDemo();
   const currentRun = demo.currentRun;
   // Centralized execution list — completed demo runs surface here automatically.
-  const executions = useMemo(
-    () => [...demo.completedExecutions, ...recentExecutions],
-    [demo.completedExecutions],
-  );
-  const [exec, setExec] = useState(executions[0].id);
+  const executions = useMemo(() => {
+    const completed = demo.completedExecutions.filter((item) => item.id !== currentRun.id);
+    return [currentRun, ...completed, ...recentExecutions];
+  }, [currentRun, demo.completedExecutions]);
+  const [exec, setExec] = useState(currentRun.id);
   // Keep selection in sync when a fresh demo run finishes.
   const effectiveExec = executions.some((e) => e.id === exec) ? exec : executions[0].id;
   const selected = executions.find((e) => e.id === effectiveExec)!;
-  const isDemoRun = selected.id === DEMO_EXECUTION.id;
+  const isDemoRun = selected.id === currentRun.id;
   const [stepId, setStepId] = useState<DemoNodeId>("docs");
   const step = currentRun.stepRuns.find((s) => s.id === stepId) ?? currentRun.stepRuns[0];
   const stepTraceEvents = currentRun.traceEvents.filter((event) => event.stepId === step.id);
@@ -43,6 +52,9 @@ function DebuggerPage() {
     (event) => event.type === "retry" || event.tone === "warn" || event.tone === "error",
   );
   const failed = step.status === "retried" || step.status === "failed";
+  const scores = getAgentScores(step);
+  const memoryUsage = getMemoryUsage(step);
+  const decisions = getDecisionCards(currentRun);
   const tracePayload = useMemo(
     () => ({
       run: {
@@ -90,7 +102,8 @@ function DebuggerPage() {
           <select
             value={effectiveExec}
             onChange={(e) => setExec(e.target.value)}
-            className="h-9 px-3 rounded-lg bg-white/5 border border-border/60 text-xs max-w-[60vw]"
+            aria-label="Select execution trace"
+            className="h-9 max-w-[60vw] rounded-lg border border-border/60 bg-white/5 px-3 text-xs transition focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/55"
           >
             {executions.map((e) => (
               <option key={e.id} value={e.id} className="bg-popover">
@@ -160,7 +173,8 @@ function DebuggerPage() {
                 <button
                   key={s.id}
                   onClick={() => setStepId(s.id)}
-                  className={`relative w-full text-left rounded-lg px-3 py-2.5 flex items-start gap-3 transition ${active ? "bg-[var(--electric)]/10 ring-1 ring-[var(--electric)]/60 shadow-[0_0_24px_-18px_oklch(0.72_0.2_250/0.8)]" : "hover:bg-white/[0.04]"}`}
+                  className={`relative w-full rounded-lg px-3 py-2.5 text-left flex items-start gap-3 transition-[background,box-shadow,transform] duration-200 focus-visible:ring-2 focus-visible:ring-[var(--ring)]/55 ${active ? "bg-[var(--electric)]/10 ring-1 ring-[var(--electric)]/60 shadow-[0_0_24px_-18px_oklch(0.72_0.2_250/0.8)]" : "hover:-translate-y-px hover:bg-white/[0.04]"}`}
+                  aria-pressed={active}
                 >
                   <div className="relative z-10 h-5 w-5 rounded-full grid place-items-center text-[10px] font-mono bg-background border border-border">
                     {isRetry ? <RefreshCw className="h-3 w-3 text-[var(--amber)]" /> : i + 1}
@@ -205,19 +219,7 @@ function DebuggerPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <StatBadge
-                tone={
-                  step.status === "running"
-                    ? "info"
-                    : failed
-                      ? "warn"
-                      : step.status === "pending"
-                        ? "default"
-                        : "success"
-                }
-              >
-                {step.status}
-              </StatBadge>
+              <StatusBadge status={failed ? "retrying" : step.status} />
               <StatBadge tone="info">step evidence</StatBadge>
             </div>
           </div>
@@ -232,8 +234,14 @@ function DebuggerPage() {
             <CopyButton text={traceJson} label="Copy trace" />
             <button
               type="button"
-              onClick={() => downloadJson(`${currentRun.id}-${step.id}-trace.json`, traceJson)}
-              className="inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-[11px] font-medium bg-white/5 border border-border/60 hover:bg-white/10 transition"
+              onClick={() => {
+                downloadJson(`${currentRun.id}-${step.id}-trace.json`, traceJson);
+                toast("Trace Exported", {
+                  description: `${step.label} trace JSON downloaded.`,
+                  icon: <Download className="h-4 w-4 text-[var(--cyan)]" />,
+                });
+              }}
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/60 bg-white/5 px-2 text-[11px] font-medium transition-[background,border-color,transform] duration-200 hover:-translate-y-px hover:bg-white/10 active:translate-y-0 focus-visible:ring-2 focus-visible:ring-[var(--ring)]/55"
             >
               <Download className="h-3 w-3" />
               Export trace JSON
@@ -248,6 +256,40 @@ function DebuggerPage() {
             <Mini label="Latency" value={`${step.latencyMs}ms`} />
             <Mini label="Tokens" value={step.tokens.toLocaleString()} />
             <Mini label="Cost" value={`$${step.cost.toFixed(2)}`} />
+          </div>
+
+          <div className="mb-4 grid grid-cols-2 lg:grid-cols-4 gap-2">
+            <Mini label="Confidence" value={`${scores.confidence}%`} />
+            <Mini label="Risk level" value={scores.risk} />
+            <Mini label="Quality score" value={`${scores.quality}%`} />
+            <Mini label="Tool reliability" value={`${scores.toolReliability}%`} />
+          </div>
+
+          <div className="mb-4 grid md:grid-cols-2 gap-3">
+            <div className="rounded-xl border border-border/60 bg-white/[0.03] p-3">
+              <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                Decision cards
+              </div>
+              <div className="mt-2 space-y-2">
+                {decisions.slice(0, 3).map((decision) => (
+                  <div key={decision.title} className="rounded-lg bg-black/20 p-2">
+                    <div className="text-xs font-semibold">{decision.title}</div>
+                    <div className="mt-1 text-[11px] text-muted-foreground">{decision.body}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-white/[0.03] p-3">
+              <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                Memory movement
+              </div>
+              <div className="mt-2 space-y-1.5 text-[11px] text-muted-foreground">
+                <MemoryLine label="Retrieved" items={memoryUsage.retrieved} />
+                <MemoryLine label="New" items={memoryUsage.newMemories} />
+                <MemoryLine label="Updated" items={memoryUsage.updatedMemories} />
+                <MemoryLine label="Skipped" items={memoryUsage.skippedMemories} />
+              </div>
+            </div>
           </div>
 
           <div className="mb-4 rounded-xl border border-border/60 bg-black/20 p-3">
@@ -274,9 +316,10 @@ function DebuggerPage() {
                   </div>
                 ))
               ) : (
-                <div className="rounded-lg bg-white/[0.03] px-3 py-2 text-xs text-muted-foreground">
-                  Trace evidence appears here as this workflow step starts and completes.
-                </div>
+                <EmptyState
+                  title="No trace evidence for this step yet."
+                  description="Run the demo workflow or choose a completed step to inspect prompt, tool, memory, retry, latency, and cost evidence."
+                />
               )}
             </div>
           </div>
@@ -443,6 +486,15 @@ function Mini({ label, value }: { label: string; value: string }) {
     <div className="rounded-md bg-black/30 border border-border/60 px-2 py-1.5">
       <div className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
       <div className="text-xs font-semibold tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function MemoryLine({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div>
+      <span className="font-medium text-foreground">{label}:</span>{" "}
+      {items.length > 0 ? items.join(", ") : "none"}
     </div>
   );
 }

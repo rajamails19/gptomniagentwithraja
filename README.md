@@ -33,6 +33,41 @@ npm run check
 
 `npm run check` runs lint and a production build. `npm run build` uses Nitro's Vercel preset and emits Vercel Build Output API files under `.vercel/output`.
 
+## Backend API Foundation
+
+The app now includes a minimal TanStack Start/Nitro API layer mounted from `src/server.ts`.
+Storage is currently in-memory and seeded from the deterministic demo scenarios.
+
+Available endpoints:
+
+- `GET /api/health`
+- `GET /api/scenarios`
+- `GET /api/scenarios/:id`
+- `GET /api/runs`
+- `POST /api/runs`
+- `GET /api/runs/:id`
+- `GET /api/runs/:id/trace`
+- `GET /api/runs/:id/artifact`
+
+Local API testing:
+
+```sh
+npm run dev
+
+curl http://localhost:8087/api/health
+curl http://localhost:8087/api/scenarios
+curl http://localhost:8087/api/scenarios/security-incident
+curl http://localhost:8087/api/runs
+curl -X POST http://localhost:8087/api/runs \
+  -H "content-type: application/json" \
+  -d '{"scenarioId":"pull-request-review"}'
+curl http://localhost:8087/api/runs/exec_pr_104
+curl http://localhost:8087/api/runs/exec_pr_104/trace
+curl http://localhost:8087/api/runs/exec_pr_104/artifact
+```
+
+If your local dev server starts on a different port, replace `8087` with the port printed by Vite.
+
 ## Vercel Deployment
 
 This repo includes `vercel.json` with:

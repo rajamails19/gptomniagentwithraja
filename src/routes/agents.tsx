@@ -1,12 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { PageHeader, Panel, StatBadge, StatusDot } from "@/components/ui/page";
+import { PageHeader, Panel, StatBadge, StatusBadge, StatusDot } from "@/components/ui/page";
 import { agents, type Agent } from "@/lib/mock-data";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Brain, Cpu, DollarSign, Gauge, Wrench } from "lucide-react";
+import { Activity, Brain, Cpu, DollarSign, Gauge, ShieldCheck, Wrench } from "lucide-react";
 import { HealthRing } from "@/components/HealthRing";
 import { CopyButton } from "@/components/CopyButton";
+import { AGENT_PHASES, getAgentScores } from "@/lib/demo/intelligence";
+import { useDemo } from "@/lib/demo-context";
 
 export const Route = createFileRoute("/agents")({
   head: () => ({
@@ -23,6 +31,11 @@ export const Route = createFileRoute("/agents")({
 
 function AgentsPage() {
   const [open, setOpen] = useState<Agent | null>(null);
+  const demo = useDemo();
+  const agentStep = open
+    ? demo.currentRun.stepRuns.find((step) => step.agent === open.name)
+    : undefined;
+  const agentScores = agentStep ? getAgentScores(agentStep) : null;
 
   return (
     <div className="space-y-6">
@@ -88,23 +101,23 @@ function AgentsPage() {
         ))}
       </div>
 
-      <Dialog open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
-        <DialogContent className="max-w-3xl bg-popover/95 backdrop-blur-xl border-border/60">
+      <Sheet open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
+        <SheetContent className="w-full overflow-y-auto border-border/60 bg-popover/95 backdrop-blur-xl sm:max-w-2xl">
           {open && (
             <>
-              <DialogHeader>
+              <SheetHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <DialogTitle className="flex items-center gap-2 text-base">
+                    <SheetTitle className="flex items-center gap-2 text-base">
                       <StatusDot status={open.status} />
                       {open.name}
                       <StatBadge tone="info">{open.model}</StatBadge>
-                    </DialogTitle>
-                    <div className="text-xs text-muted-foreground mt-1">{open.role}</div>
+                    </SheetTitle>
+                    <SheetDescription className="mt-1">{open.role}</SheetDescription>
                   </div>
                   <HealthRing value={open.health} size={56} stroke={5} label={`${open.health}%`} />
                 </div>
-              </DialogHeader>
+              </SheetHeader>
 
               <Tabs defaultValue="overview" className="mt-2">
                 <TabsList className="bg-white/5 border border-border/60">
@@ -123,6 +136,32 @@ function AgentsPage() {
                     <Metric icon={Activity} label="Latency" value={`${open.latencyMs}ms`} />
                     <Metric icon={DollarSign} label="Cost" value={`$${open.cost.toFixed(2)}`} />
                   </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                    <Metric
+                      icon={ShieldCheck}
+                      label="Confidence"
+                      value={`${agentScores?.confidence ?? open.health}%`}
+                    />
+                    <Metric icon={ShieldCheck} label="Risk" value={agentScores?.risk ?? "Low"} />
+                    <Metric
+                      icon={ShieldCheck}
+                      label="Quality"
+                      value={`${agentScores?.quality ?? Math.max(90, open.health - 2)}%`}
+                    />
+                    <Metric
+                      icon={ShieldCheck}
+                      label="Reliability"
+                      value={`${agentScores?.toolReliability ?? Math.max(88, open.health - 1)}%`}
+                    />
+                  </div>
+                  <Section label="Current status">
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={agentStep?.status ?? open.status} />
+                      <span className="text-xs text-muted-foreground">
+                        {agentStep?.outputSummary ?? "Ready for assignment."}
+                      </span>
+                    </div>
+                  </Section>
                   <Section label="Skills">
                     <div className="flex flex-wrap gap-1.5">
                       {open.skills.map((t) => (
@@ -137,6 +176,17 @@ function AgentsPage() {
                   </Section>
                   <Section label="Last task">
                     <p className="text-sm">{open.lastTask}</p>
+                  </Section>
+                  <Section label="Recent tasks">
+                    <div className="space-y-1.5 text-xs text-muted-foreground">
+                      {[open.lastTask, agentStep?.description, agentStep?.outputSummary]
+                        .filter(Boolean)
+                        .map((task) => (
+                          <div key={task} className="rounded-md bg-white/[0.03] px-2 py-1.5">
+                            {task}
+                          </div>
+                        ))}
+                    </div>
                   </Section>
                 </TabsContent>
 
@@ -168,6 +218,24 @@ function AgentsPage() {
                   <Section label="Summary">
                     <p className="text-sm text-muted-foreground">{open.memorySummary}</p>
                   </Section>
+                  <Section label="Memory access">
+                    <div className="flex flex-wrap gap-1.5">
+                      {(
+                        agentStep?.memoryContext ?? [
+                          "agent_profile",
+                          "recent_tasks",
+                          "policy_scope",
+                        ]
+                      ).map((memory) => (
+                        <span
+                          key={memory}
+                          className="rounded-md border border-border/60 bg-white/[0.04] px-2 py-0.5 text-[11px] font-mono"
+                        >
+                          {memory}
+                        </span>
+                      ))}
+                    </div>
+                  </Section>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <Metric icon={Brain} label="Vectors" value="2,184" />
                     <Metric icon={Brain} label="Episodes" value="148" />
@@ -177,7 +245,8 @@ function AgentsPage() {
 
                 <TabsContent value="logs" className="mt-4">
                   <pre className="rounded-lg bg-black/50 border border-border/60 p-3 text-[11px] font-mono text-muted-foreground whitespace-pre-wrap max-h-[320px] overflow-auto">
-                    {`[12:04:21] tool:web_search ok in 420ms
+                    {`${AGENT_PHASES.map((phase, index) => `[12:04:${20 + index}] ${phase}`).join("\n")}
+[12:04:21] tool:web_search ok in 420ms
 [12:04:22] llm:call ${open.model} tokens=1248
 [12:04:23] route:next → reviewer
 [12:04:24] memory:write key=last_plan
@@ -199,6 +268,17 @@ function AgentsPage() {
                       label="Cost (24h)"
                       value={`$${open.cost.toFixed(2)}`}
                     />
+                    <Metric icon={Activity} label="Success rate" value={`${open.health}%`} />
+                    <Metric
+                      icon={Activity}
+                      label="Retry count"
+                      value={agentStep?.status === "retried" ? "1" : "0"}
+                    />
+                    <Metric
+                      icon={Cpu}
+                      label="Allowed models"
+                      value={[open.model, "gpt-4o-mini"].join(", ")}
+                    />
                   </div>
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-1.5">
@@ -215,8 +295,8 @@ function AgentsPage() {
               </Tabs>
             </>
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

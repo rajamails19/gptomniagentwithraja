@@ -1,4 +1,3 @@
-import { DEMO_RUN_ID, DEMO_SCENARIO } from "./seed-data";
 import type {
   CostSummary,
   DemoNodeId,
@@ -20,15 +19,16 @@ type ExecutionStatus = "idle" | "running" | "success" | "error";
 
 export function getCurrentRun(snapshot: DemoRuntimeSnapshot): DemoRun {
   const status = getRunStatus(snapshot);
-  const traceEvents = getTraceEventsForRun(snapshot, DEMO_RUN_ID);
-  const costSummary = getCostSummaryForRun(snapshot, DEMO_RUN_ID);
+  const runId = snapshot.scenario.executionRecord.id;
+  const traceEvents = getTraceEventsForRun(snapshot, runId);
+  const costSummary = getCostSummaryForRun(snapshot, runId);
 
   return {
-    ...DEMO_SCENARIO.executionRecord,
+    ...snapshot.scenario.executionRecord,
     status: status === "idle" ? "running" : status,
-    scenarioId: DEMO_SCENARIO.id,
-    goal: DEMO_SCENARIO.goal,
-    currentStepId: DEMO_SCENARIO.steps[snapshot.currentIndex]?.id ?? null,
+    scenarioId: snapshot.scenario.id,
+    goal: snapshot.scenario.goal,
+    currentStepId: snapshot.scenario.steps[snapshot.currentIndex]?.id ?? null,
     stepStatuses: snapshot.statuses,
     stepRuns: snapshot.engineRuntime.stepRuns,
     traceEvents,
@@ -36,7 +36,7 @@ export function getCurrentRun(snapshot: DemoRuntimeSnapshot): DemoRun {
     tokens: costSummary.totalTokens,
     cost: costSummary.totalCost,
     costSummary,
-    finalArtifact: getFinalArtifactForRun(DEMO_RUN_ID),
+    finalArtifact: getFinalArtifactForRun(snapshot, runId),
   };
 }
 
@@ -44,39 +44,42 @@ export function getActiveWorkflowStep(
   snapshot: DemoRuntimeSnapshot,
   stepId?: DemoNodeId,
 ): WorkflowStep {
-  const activeId = stepId ?? DEMO_SCENARIO.steps[snapshot.currentIndex]?.id ?? "planner";
-  return DEMO_SCENARIO.steps.find((step) => step.id === activeId) ?? DEMO_SCENARIO.steps[1];
+  const activeId = stepId ?? snapshot.scenario.steps[snapshot.currentIndex]?.id ?? "planner";
+  return snapshot.scenario.steps.find((step) => step.id === activeId) ?? snapshot.scenario.steps[1];
 }
 
 export function getTraceEventsForRun(
   snapshot: DemoRuntimeSnapshot,
-  runId = DEMO_RUN_ID,
+  runId = snapshot.scenario.executionRecord.id,
 ): TraceEvent[] {
-  if (runId === DEMO_RUN_ID) return snapshot.engineRuntime.traceEvents;
+  if (runId === snapshot.scenario.executionRecord.id) return snapshot.engineRuntime.traceEvents;
 
   return [];
 }
 
 export function getCostSummaryForRun(
   snapshot: DemoRuntimeSnapshot,
-  runId = DEMO_RUN_ID,
+  runId = snapshot.scenario.executionRecord.id,
 ): CostSummary {
-  if (!snapshot.isRunning && !snapshot.isComplete) return DEMO_SCENARIO.costSummary;
+  if (!snapshot.isRunning && !snapshot.isComplete) return snapshot.scenario.costSummary;
 
   return {
-    ...DEMO_SCENARIO.costSummary,
+    ...snapshot.scenario.costSummary,
     runId,
     totalCost: snapshot.isComplete
-      ? DEMO_SCENARIO.costSummary.totalCost
+      ? snapshot.scenario.costSummary.totalCost
       : snapshot.engineRuntime.runCost,
     totalTokens: snapshot.isComplete
-      ? DEMO_SCENARIO.costSummary.totalTokens
+      ? snapshot.scenario.costSummary.totalTokens
       : snapshot.engineRuntime.runTokens,
   };
 }
 
-export function getFinalArtifactForRun(runId = DEMO_RUN_ID): FinalArtifact {
-  return { ...DEMO_SCENARIO.finalArtifact, runId };
+export function getFinalArtifactForRun(
+  snapshot: DemoRuntimeSnapshot,
+  runId = snapshot.scenario.executionRecord.id,
+): FinalArtifact {
+  return { ...snapshot.scenario.finalArtifact, runId };
 }
 
 export function getWorkflowStepStatus(

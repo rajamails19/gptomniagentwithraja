@@ -117,6 +117,10 @@
   * {
     border-color: var(--color-border);
   }
+  :focus-visible {
+    outline: 2px solid oklch(0.72 0.18 250 / 0.7);
+    outline-offset: 2px;
+  }
   html,
   body,
   #root {
@@ -226,6 +230,9 @@
 @utility animate-fade-in {
   animation: fade-in 240ms ease-out both;
 }
+@utility animate-shimmer {
+  animation: shimmer 1.7s ease-in-out infinite;
+}
 
 @keyframes row-highlight {
   0% {
@@ -247,4 +254,15 @@
 }
 @utility animate-row-highlight {
   animation: row-highlight 2s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
 }

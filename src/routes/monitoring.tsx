@@ -16,8 +16,17 @@ import {
   YAxis,
 } from "recharts";
 import { AlertTriangle } from "lucide-react";
-import { PageHeader, Panel, StatBadge, StatusDot } from "@/components/ui/page";
+import {
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  Panel,
+  StatBadge,
+  StatusBadge,
+  StatusDot,
+} from "@/components/ui/page";
 import { agents, alerts, dashboardSeries, modelBreakdown } from "@/lib/mock-data";
+import { useDemo } from "@/lib/demo-context";
 
 export const Route = createFileRoute("/monitoring")({
   head: () => ({
@@ -33,6 +42,12 @@ export const Route = createFileRoute("/monitoring")({
 });
 
 function MonitoringPage() {
+  const demo = useDemo();
+  const scenario = demo.selectedScenario;
+  const activeAgents = new Set(
+    scenario.steps.filter((step) => step.agent !== "—").map((step) => step.agent),
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -42,12 +57,31 @@ function MonitoringPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { k: "Queue depth", v: "14", t: "info" as const },
-          { k: "Retry rate", v: "1.8%", t: "warn" as const },
-          { k: "Error rate", v: "0.4%", t: "success" as const },
-          { k: "P95 latency", v: "1.4s", t: "info" as const },
+          { k: "Scenario agents", v: String(activeAgents.size), t: "info" as const },
+          {
+            k: "Retry events",
+            v: String(
+              Object.values(scenario.stepMessages)
+                .flat()
+                .filter((m) => m.type === "retry").length,
+            ),
+            t: "warn" as const,
+          },
+          {
+            k: "Trace events",
+            v: String(Object.values(scenario.stepMessages).flat().length),
+            t: "success" as const,
+          },
+          {
+            k: "Est. latency",
+            v: `${(scenario.costSummary.latencyMs / 1000).toFixed(0)}s`,
+            t: "info" as const,
+          },
         ].map((s) => (
-          <div key={s.k} className="rounded-xl glass p-4">
+          <div
+            key={s.k}
+            className="rounded-xl glass p-4 transition-[border-color,transform,background] duration-200 hover:-translate-y-px hover:border-white/15"
+          >
             <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
               {s.k}
             </div>
@@ -65,17 +99,26 @@ function MonitoringPage() {
           All registered agents in current environment
         </div>
         <div className="mt-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
-          {agents.map((a) => (
-            <div key={a.id} className="rounded-lg glass p-3 text-xs">
-              <div className="flex items-center gap-2">
-                <StatusDot status={a.status} />
-                <span className="font-medium truncate">{a.name.replace(" Agent", "")}</span>
+          {agents.length > 0 ? (
+            agents.map((a) => (
+              <div
+                key={a.id}
+                className="rounded-lg glass p-3 text-xs transition-[background,transform] duration-200 hover:-translate-y-px hover:bg-white/[0.05]"
+              >
+                <div className="flex items-center gap-2">
+                  <StatusDot status={a.status} />
+                  <span className="font-medium truncate">{a.name.replace(" Agent", "")}</span>
+                </div>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  {a.latencyMs}ms · {a.health}%
+                </div>
               </div>
-              <div className="mt-1 text-[11px] text-muted-foreground">
-                {a.latencyMs}ms · {a.health}%
-              </div>
+            ))
+          ) : (
+            <div className="col-span-full">
+              <LoadingState label="Loading registered agents" />
             </div>
-          ))}
+          )}
         </div>
       </Panel>
 
@@ -203,19 +246,26 @@ function MonitoringPage() {
             <AlertTriangle className="h-4 w-4 text-[var(--amber)]" /> Active alerts
           </div>
           <div className="space-y-2">
-            {alerts.map((a, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-3 rounded-lg bg-white/[0.03] border border-border/60 p-3"
-              >
-                <StatusDot status={a.severity === "error" ? "error" : "queued"} />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium">{a.kind}</div>
-                  <div className="text-xs text-muted-foreground truncate">{a.detail}</div>
+            {alerts.length > 0 ? (
+              alerts.map((a, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 rounded-lg border border-border/60 bg-white/[0.03] p-3 transition-[background,border-color,transform] duration-200 hover:-translate-y-px hover:bg-white/[0.05]"
+                >
+                  <StatusDot status={a.severity === "error" ? "error" : "queued"} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium">{a.kind}</div>
+                    <div className="text-xs text-muted-foreground truncate">{a.detail}</div>
+                  </div>
+                  <StatusBadge status={a.severity === "error" ? "failed" : "retrying"} />
                 </div>
-                <StatBadge tone={a.severity === "error" ? "error" : "warn"}>{a.severity}</StatBadge>
-              </div>
-            ))}
+              ))
+            ) : (
+              <EmptyState
+                title="No active alerts."
+                description="When queues, tools, or agents need attention, alerts will appear here with severity and ownership context."
+              />
+            )}
           </div>
         </Panel>
       </div>
