@@ -12,7 +12,9 @@ export const runsTable = sqliteTable("runs", {
   id: text("id").primaryKey(),
   scenarioId: text("scenario_id").notNull(),
   workflow: text("workflow").notNull(),
-  status: text("status", { enum: ["success", "running", "error"] }).notNull(),
+  status: text("status", {
+    enum: ["queued", "running", "completed", "failed", "cancelled"],
+  }).notNull(),
   duration: text("duration").notNull(),
   tokens: integer("tokens").notNull(),
   cost: real("cost").notNull(),
@@ -20,7 +22,25 @@ export const runsTable = sqliteTable("runs", {
   currentStepId: text("current_step_id"),
   costSummaryJson: text("cost_summary_json").notNull(),
   finalArtifactJson: text("final_artifact_json").notNull(),
+  startedAt: text("started_at"),
+  completedAt: text("completed_at"),
+  cancelledAt: text("cancelled_at"),
   createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const workflowStepsTable = sqliteTable("workflow_steps", {
+  id: text("id").primaryKey(),
+  runId: text("run_id").notNull(),
+  stepId: text("step_id").notNull(),
+  label: text("label").notNull(),
+  agent: text("agent").notNull(),
+  status: text("status", {
+    enum: ["pending", "running", "completed", "failed", "retried", "skipped"],
+  }).notNull(),
+  sequence: integer("sequence").notNull(),
+  startedAt: text("started_at"),
+  completedAt: text("completed_at"),
   updatedAt: text("updated_at").notNull(),
 });
 
@@ -79,5 +99,6 @@ export const settingsTable = sqliteTable("settings", {
 });
 
 export type RunRow = typeof runsTable.$inferSelect;
+export type WorkflowStepRow = typeof workflowStepsTable.$inferSelect;
 export type TraceEventRow = typeof traceEventsTable.$inferSelect;
 export type ArtifactRow = typeof artifactsTable.$inferSelect;

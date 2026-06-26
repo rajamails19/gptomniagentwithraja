@@ -1,4 +1,5 @@
 import type { RegisteredRoute } from "../types/api";
+import { workflowExecutionService } from "./workflow-execution-service";
 import { getRequestLogs } from "../utils/logger";
 
 export class DeveloperService {
@@ -8,6 +9,10 @@ export class DeveloperService {
 
   listLogs() {
     return getRequestLogs();
+  }
+
+  listExecutionLogs() {
+    return workflowExecutionService.listExecutionLogs();
   }
 }
 

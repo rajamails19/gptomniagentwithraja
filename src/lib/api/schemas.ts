@@ -63,7 +63,7 @@ export const runSchema = z.object({
   id: z.string(),
   scenarioId: z.string(),
   workflow: z.string(),
-  status: z.enum(["success", "running", "error"]),
+  status: z.enum(["queued", "running", "completed", "failed", "cancelled", "success", "error"]),
   duration: z.string(),
   tokens: z.number(),
   cost: z.number(),
@@ -71,6 +71,32 @@ export const runSchema = z.object({
   currentStepId: demoNodeIdSchema.nullable(),
   costSummary: costSummarySchema,
   finalArtifact: finalArtifactSchema.omit({ markdown: true }),
+});
+
+export const workflowStepStatusSchema = z.enum([
+  "pending",
+  "running",
+  "completed",
+  "failed",
+  "retried",
+  "skipped",
+]);
+
+export const runStatusResponseSchema = z.object({
+  run: runSchema,
+  steps: z.array(
+    z.object({
+      id: demoNodeIdSchema,
+      label: z.string(),
+      agent: z.string(),
+      status: workflowStepStatusSchema,
+      order: z.number(),
+      startedAt: z.string().nullable(),
+      completedAt: z.string().nullable(),
+    }),
+  ),
+  traceCount: z.number(),
+  artifactReady: z.boolean(),
 });
 
 export const createRunRequestSchema = z.object({
@@ -82,4 +108,5 @@ export type ApiFinalArtifact = z.infer<typeof finalArtifactSchema>;
 export type ApiTraceEvent = z.infer<typeof traceEventSchema>;
 export type ApiScenario = z.infer<typeof scenarioSummarySchema>;
 export type ApiRun = z.infer<typeof runSchema>;
+export type ApiRunStatus = z.infer<typeof runStatusResponseSchema>;
 export type CreateRunRequest = z.infer<typeof createRunRequestSchema>;

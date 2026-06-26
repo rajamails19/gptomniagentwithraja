@@ -1,4 +1,4 @@
-import type { ApiFinalArtifact, ApiRun, ApiScenario, ApiTraceEvent } from "./schemas";
+import type { ApiFinalArtifact, ApiRun, ApiRunStatus, ApiScenario, ApiTraceEvent } from "./schemas";
 
 export type ApiHealth = {
   ok: boolean;
@@ -102,6 +102,31 @@ export async function createRun(scenarioId?: string) {
   return data.run;
 }
 
+export async function startRun(id: string) {
+  const data = await requestJson<ApiRunStatus>(`/api/v1/runs/${id}/start`, {
+    method: "POST",
+  });
+  return data;
+}
+
+export async function cancelRun(id: string) {
+  const data = await requestJson<ApiRunStatus>(`/api/v1/runs/${id}/cancel`, {
+    method: "POST",
+  });
+  return data;
+}
+
+export async function replayRun(id: string) {
+  const data = await requestJson<ApiRunStatus>(`/api/v1/runs/${id}/replay`, {
+    method: "POST",
+  });
+  return data;
+}
+
+export async function getRunStatus(id: string) {
+  return requestJson<ApiRunStatus>(`/api/v1/runs/${id}/status`);
+}
+
 export async function getRun(id: string) {
   const data = await requestJson<{ run: ApiRun }>(`/api/v1/runs/${id}`);
   return data.run;
@@ -124,5 +149,10 @@ export async function getApiRoutes() {
 
 export async function getApiLogs() {
   const data = await requestJson<{ logs: ApiRequestLog[] }>("/api/v1/developer/logs");
+  return data.logs;
+}
+
+export async function getExecutionLogs() {
+  const data = await requestJson<{ logs: unknown[] }>("/api/v1/developer/execution-logs");
   return data.logs;
 }

@@ -48,7 +48,7 @@ Backend code is organized under `src/server/`:
 - `types/` - server API types
 - `utils/` - HTTP responses, structured errors, and request logging
 
-Runs, trace events, and artifacts are persisted in a local SQLite database through Drizzle ORM. Scenarios, agents, tools, and settings are still seeded from deterministic demo data and exposed through repository boundaries.
+Runs, workflow steps, trace events, and artifacts are persisted in a local SQLite database through Drizzle ORM. Scenarios, agents, tools, and settings are still seeded from deterministic demo data and exposed through repository boundaries.
 
 Local database:
 
@@ -67,6 +67,16 @@ npm run db:studio
 
 `db:migrate` creates local SQLite tables if missing. `db:seed` inserts deterministic demo rows only when the database is empty, so restarts do not duplicate runs.
 
+Execution lifecycle:
+
+- `POST /api/v1/runs` creates a queued persisted run.
+- `POST /api/v1/runs/:id/start` starts deterministic backend execution.
+- `GET /api/v1/runs/:id/status` advances and returns the persisted lifecycle state.
+- While running, steps move through `pending`, `running`, and `completed`.
+- Trace events are persisted as the run progresses.
+- The final artifact is persisted when the run reaches `completed`.
+- The current frontend calls the backend first and falls back to the local deterministic demo engine if the API is unavailable.
+
 Available endpoints:
 
 - `GET /api/v1/health`
@@ -75,6 +85,10 @@ Available endpoints:
 - `GET /api/v1/runs`
 - `POST /api/v1/runs`
 - `GET /api/v1/runs/:id`
+- `POST /api/v1/runs/:id/start`
+- `POST /api/v1/runs/:id/cancel`
+- `POST /api/v1/runs/:id/replay`
+- `GET /api/v1/runs/:id/status`
 - `GET /api/v1/runs/:id/trace`
 - `GET /api/v1/runs/:id/artifact`
 - `GET /api/v1/agents`
@@ -82,6 +96,7 @@ Available endpoints:
 - `GET /api/v1/settings`
 - `GET /api/v1/developer/routes`
 - `GET /api/v1/developer/logs`
+- `GET /api/v1/developer/execution-logs`
 
 Local API testing:
 
@@ -95,9 +110,10 @@ curl http://localhost:8087/api/v1/runs
 curl -X POST http://localhost:8087/api/v1/runs \
   -H "content-type: application/json" \
   -d '{"scenarioId":"pull-request-review"}'
-curl http://localhost:8087/api/v1/runs/exec_pr_104
-curl http://localhost:8087/api/v1/runs/exec_pr_104/trace
-curl http://localhost:8087/api/v1/runs/exec_pr_104/artifact
+curl -X POST http://localhost:8087/api/v1/runs/<run-id>/start
+curl http://localhost:8087/api/v1/runs/<run-id>/status
+curl http://localhost:8087/api/v1/runs/<run-id>/trace
+curl http://localhost:8087/api/v1/runs/<run-id>/artifact
 ```
 
 If your local dev server starts on a different port, replace `8087` with the port printed by Vite.

@@ -6,11 +6,14 @@ import { PageHeader, Panel, StatBadge, StatusBadge } from "@/components/ui/page"
 import {
   getApiLogs,
   getApiRoutes,
+  getExecutionLogs,
   getHealth,
+  getRuns,
   type ApiHealth,
   type ApiRequestLog,
   type RegisteredApiRoute,
 } from "@/lib/api/client";
+import type { ApiRun } from "@/lib/api/schemas";
 
 export const Route = createFileRoute("/developer/api")({
   head: () => ({ meta: [{ title: "API Explorer — GPT Omni Agents" }] }),
@@ -22,6 +25,9 @@ const sampleRequests = [
   "curl http://localhost:8080/api/v1/scenarios",
   "curl http://localhost:8080/api/v1/runs",
   'curl -X POST http://localhost:8080/api/v1/runs -H "content-type: application/json" -d \'{"scenarioId":"pull-request-review"}\'',
+  "curl -X POST http://localhost:8080/api/v1/runs/{id}/start",
+  "curl http://localhost:8080/api/v1/runs/{id}/status",
+  "curl -X POST http://localhost:8080/api/v1/runs/{id}/replay",
   "curl http://localhost:8080/api/v1/runs/exec_pr_104/trace",
   "curl http://localhost:8080/api/v1/runs/exec_pr_104/artifact",
 ];
@@ -30,6 +36,8 @@ function DeveloperApiPage() {
   const [health, setHealth] = useState<ApiHealth | null>(null);
   const [routes, setRoutes] = useState<RegisteredApiRoute[]>([]);
   const [logs, setLogs] = useState<ApiRequestLog[]>([]);
+  const [runs, setRuns] = useState<ApiRun[]>([]);
+  const [executionLogs, setExecutionLogs] = useState<unknown[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,15 +45,19 @@ function DeveloperApiPage() {
 
     async function loadApiExplorer() {
       try {
-        const [nextHealth, nextRoutes, nextLogs] = await Promise.all([
+        const [nextHealth, nextRoutes, nextLogs, nextRuns, nextExecutionLogs] = await Promise.all([
           getHealth(),
           getApiRoutes(),
           getApiLogs(),
+          getRuns(),
+          getExecutionLogs(),
         ]);
         if (!active) return;
         setHealth(nextHealth);
         setRoutes(nextRoutes);
         setLogs(nextLogs);
+        setRuns(nextRuns);
+        setExecutionLogs(nextExecutionLogs);
         setError(null);
       } catch (apiError) {
         if (!active) return;
@@ -75,6 +87,7 @@ function DeveloperApiPage() {
     }),
     [health],
   );
+  const latestRun = runs.at(-1) ?? null;
 
   return (
     <div className="space-y-6">
@@ -141,6 +154,45 @@ function DeveloperApiPage() {
               ))}
             </div>
           </div>
+        </Panel>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <Panel>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Activity className="h-4 w-4 text-[var(--emerald)]" />
+            Latest run lifecycle
+          </div>
+          {latestRun ? (
+            <div className="mt-4 space-y-3 text-sm">
+              {[
+                ["Run", latestRun.id],
+                ["Scenario", latestRun.scenarioId],
+                ["Status", latestRun.status],
+                ["Current step", latestRun.currentStepId ?? "none"],
+                ["Cost", `$${latestRun.cost.toFixed(2)}`],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className="font-medium">{value}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4 text-xs text-muted-foreground">
+              No persisted runs available yet.
+            </div>
+          )}
+        </Panel>
+
+        <Panel>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Activity className="h-4 w-4 text-[var(--amber)]" />
+            Backend execution logs
+          </div>
+          <pre className="mt-4 max-h-[260px] overflow-auto rounded-lg border border-border/60 bg-black/20 p-3 text-[11px] text-muted-foreground">
+            {JSON.stringify(executionLogs.slice(0, 8), null, 2)}
+          </pre>
         </Panel>
       </div>
 

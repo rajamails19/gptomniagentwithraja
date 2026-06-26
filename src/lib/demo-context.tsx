@@ -10,6 +10,8 @@ import {
 } from "react";
 import { DEFAULT_SCENARIO_ID, DEMO_SCENARIOS, getDemoScenario } from "@/lib/demo/seed-data";
 import { getCurrentRun } from "@/lib/demo/selectors";
+import { cancelRun, createRun, getRunStatus, getRunTrace, startRun } from "@/lib/api/client";
+import type { ApiRunStatus, ApiTraceEvent } from "@/lib/api/schemas";
 import {
   applyTimelineAction,
   createInitialEngineRuntime,
@@ -83,6 +85,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [completedExecutions, setCompletedExecutions] = useState<ExecutionRecord[]>([]);
   const [lastCompletedId, setLastCompletedId] = useState<string | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const activeBackendRunId = useRef<string | null>(null);
 
   const clearTimers = () => {
     timers.current.forEach(clearTimeout);
@@ -90,7 +93,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   };
 
   const reset = useCallback(() => {
+    const runId = activeBackendRunId.current;
+    if (runId) void cancelRun(runId).catch(() => undefined);
     clearTimers();
+    activeBackendRunId.current = null;
     setIsRunning(false);
     setIsComplete(false);
     setEngineRuntime(createInitialEngineRuntime(selectedScenario));
@@ -106,7 +112,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     setEngineRuntime(createInitialEngineRuntime(scenario));
   }, []);
 
-  const start = useCallback(() => {
+  const startLocalDemo = useCallback(() => {
     clearTimers();
     setIsRunning(true);
     setIsComplete(false);
@@ -144,6 +150,131 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       );
     });
   }, [selectedScenario]);
+
+  const applyBackendStatus = useCallback(
+    (status: ApiRunStatus, trace: ApiTraceEvent[]) => {
+      const stepStatuses = { ...createInitialEngineRuntime(selectedScenario).statuses };
+      status.steps.forEach((step) => {
+        if (!step.id) return;
+        stepStatuses[step.id] =
+          step.status === "completed"
+            ? "success"
+            : step.status === "running"
+              ? "running"
+              : step.status === "failed"
+                ? "error"
+                : step.status === "retried"
+                  ? "queued"
+                  : "idle";
+      });
+
+      const currentIndex = Math.max(
+        0,
+        selectedScenario.steps.findIndex((step) => step.id === status.run.currentStepId),
+      );
+
+      setEngineRuntime({
+        currentIndex,
+        statuses: stepStatuses,
+        stepRuns: selectedScenario.steps.map((step) => {
+          const backendStep = status.steps.find((item) => item.id === step.id);
+          return {
+            ...step,
+            runId: status.run.id,
+            status:
+              backendStep?.status === "completed"
+                ? "completed"
+                : backendStep?.status === "running"
+                  ? "running"
+                  : backendStep?.status === "failed"
+                    ? "failed"
+                    : backendStep?.status === "retried"
+                      ? "retried"
+                      : "pending",
+            startedAt: backendStep?.startedAt ?? undefined,
+            completedAt: backendStep?.completedAt ?? undefined,
+          };
+        }),
+        traceEvents: trace,
+        visibleToolCalls: selectedScenario.toolCalls.filter((toolCall) =>
+          trace.some((event) => event.toolCallId === toolCall.id),
+        ),
+        runCost: status.run.cost,
+        runTokens: status.run.tokens,
+      });
+
+      if (status.run.status === "completed") {
+        setIsRunning(false);
+        setIsComplete(true);
+        setCompletedExecutions((prev) =>
+          prev.some((execution) => execution.id === status.run.id)
+            ? prev
+            : [
+                {
+                  id: status.run.id,
+                  workflow: status.run.workflow,
+                  status: "success",
+                  duration: status.run.duration,
+                  tokens: status.run.tokens,
+                  cost: status.run.cost,
+                  started: status.run.started,
+                  isDemo: true,
+                },
+                ...prev,
+              ],
+        );
+        setLastCompletedId(status.run.id);
+      }
+    },
+    [selectedScenario],
+  );
+
+  const pollBackendRun = useCallback(
+    (runId: string) => {
+      timers.current.push(
+        setTimeout(async () => {
+          if (activeBackendRunId.current !== runId) return;
+          try {
+            const [status, trace] = await Promise.all([
+              getRunStatus(runId),
+              getRunTrace(runId).catch(() => []),
+            ]);
+            applyBackendStatus(status, trace);
+            if (status.run.status === "running" || status.run.status === "queued") {
+              pollBackendRun(runId);
+            }
+          } catch {
+            activeBackendRunId.current = null;
+            startLocalDemo();
+          }
+        }, 500),
+      );
+    },
+    [applyBackendStatus, startLocalDemo],
+  );
+
+  const start = useCallback(() => {
+    clearTimers();
+    activeBackendRunId.current = null;
+    setIsRunning(true);
+    setIsComplete(false);
+    setLastCompletedId(null);
+    setEngineRuntime(createQueuedEngineRuntime(selectedScenario));
+
+    void (async () => {
+      try {
+        const queuedRun = await createRun(selectedScenario.id);
+        activeBackendRunId.current = queuedRun.id;
+        const status = await startRun(queuedRun.id);
+        const trace = await getRunTrace(queuedRun.id).catch(() => []);
+        applyBackendStatus(status, trace);
+        pollBackendRun(queuedRun.id);
+      } catch {
+        activeBackendRunId.current = null;
+        startLocalDemo();
+      }
+    })();
+  }, [applyBackendStatus, pollBackendRun, selectedScenario, startLocalDemo]);
 
   useEffect(() => () => clearTimers(), []);
 

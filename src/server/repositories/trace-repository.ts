@@ -30,6 +30,37 @@ export class TraceRepository {
       toolCallId: row.toolCallId ?? undefined,
     }));
   }
+
+  replaceForRun(runId: string, events: TraceEvent[]) {
+    const now = new Date().toISOString();
+    db.transaction((tx) => {
+      tx.delete(traceEventsTable).where(eq(traceEventsTable.runId, runId)).run();
+      if (events.length === 0) return;
+      tx.insert(traceEventsTable)
+        .values(
+          events.map((event, index) => ({
+            id: event.id,
+            runId: event.runId,
+            stepId: event.stepId,
+            sequence: index,
+            ts: event.ts,
+            agent: event.agent,
+            message: event.message,
+            tone: event.tone,
+            type: event.type,
+            latencyMs: event.latencyMs ?? null,
+            cost: event.cost ?? null,
+            toolCallId: event.toolCallId ?? null,
+            createdAt: now,
+          })),
+        )
+        .run();
+    });
+  }
+
+  countForRun(runId: string) {
+    return this.listForRun(runId)?.length ?? 0;
+  }
 }
 
 export const traceRepository = new TraceRepository();

@@ -4,6 +4,7 @@ import {
   createRunRequestSchema,
   finalArtifactSchema,
   runSchema,
+  runStatusResponseSchema,
   scenarioSummarySchema,
   traceEventSchema,
 } from "@/lib/api/schemas";
@@ -13,6 +14,7 @@ export {
   createRunRequestSchema,
   finalArtifactSchema,
   runSchema,
+  runStatusResponseSchema,
   scenarioSummarySchema,
   traceEventSchema,
 };

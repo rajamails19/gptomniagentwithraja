@@ -5,6 +5,8 @@ let migrated = false;
 export function runMigrations() {
   if (migrated) return;
 
+  migrateRunsTableIfNeeded();
+
   sqlite.exec(`
     create table if not exists scenarios (
       id text primary key,
@@ -18,7 +20,7 @@ export function runMigrations() {
       id text primary key,
       scenario_id text not null,
       workflow text not null,
-      status text not null check (status in ('success', 'running', 'error')),
+      status text not null check (status in ('queued', 'running', 'completed', 'failed', 'cancelled')),
       duration text not null,
       tokens integer not null,
       cost real not null,
@@ -26,9 +28,29 @@ export function runMigrations() {
       current_step_id text,
       cost_summary_json text not null,
       final_artifact_json text not null,
+      started_at text,
+      completed_at text,
+      cancelled_at text,
       created_at text not null,
       updated_at text not null
     );
+
+    create table if not exists workflow_steps (
+      id text primary key,
+      run_id text not null,
+      step_id text not null,
+      label text not null,
+      agent text not null,
+      status text not null check (status in ('pending', 'running', 'completed', 'failed', 'retried', 'skipped')),
+      sequence integer not null,
+      started_at text,
+      completed_at text,
+      updated_at text not null,
+      foreign key (run_id) references runs(id) on delete cascade
+    );
+
+    create index if not exists idx_workflow_steps_run_sequence
+      on workflow_steps (run_id, sequence);
 
     create table if not exists trace_events (
       id text primary key,
@@ -89,4 +111,83 @@ export function runMigrations() {
   `);
 
   migrated = true;
+}
+
+function migrateRunsTableIfNeeded() {
+  const table = sqlite
+    .prepare("select sql from sqlite_master where type = 'table' and name = 'runs'")
+    .get() as { sql?: string } | undefined;
+
+  if (!table?.sql) return;
+  if (table.sql.includes("'queued'") && table.sql.includes("started_at")) return;
+
+  sqlite.exec(`
+    pragma foreign_keys = off;
+
+    create table if not exists runs_next (
+      id text primary key,
+      scenario_id text not null,
+      workflow text not null,
+      status text not null check (status in ('queued', 'running', 'completed', 'failed', 'cancelled')),
+      duration text not null,
+      tokens integer not null,
+      cost real not null,
+      started text not null,
+      current_step_id text,
+      cost_summary_json text not null,
+      final_artifact_json text not null,
+      started_at text,
+      completed_at text,
+      cancelled_at text,
+      created_at text not null,
+      updated_at text not null
+    );
+
+    insert into runs_next (
+      id,
+      scenario_id,
+      workflow,
+      status,
+      duration,
+      tokens,
+      cost,
+      started,
+      current_step_id,
+      cost_summary_json,
+      final_artifact_json,
+      started_at,
+      completed_at,
+      cancelled_at,
+      created_at,
+      updated_at
+    )
+    select
+      id,
+      scenario_id,
+      workflow,
+      case
+        when status = 'success' then 'completed'
+        when status = 'error' then 'failed'
+        when status in ('queued', 'running', 'completed', 'failed', 'cancelled') then status
+        else 'completed'
+      end,
+      duration,
+      tokens,
+      cost,
+      started,
+      current_step_id,
+      cost_summary_json,
+      final_artifact_json,
+      null,
+      case when status in ('success', 'completed') then updated_at else null end,
+      null,
+      created_at,
+      updated_at
+    from runs;
+
+    drop table runs;
+    alter table runs_next rename to runs;
+
+    pragma foreign_keys = on;
+  `);
 }

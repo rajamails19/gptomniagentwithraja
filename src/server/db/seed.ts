@@ -1,4 +1,4 @@
-import { count } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 
 import { DEMO_SCENARIOS } from "@/lib/demo/seed-data";
 import { createTrace } from "../models/mappers";
@@ -10,6 +10,7 @@ import {
   settingsTable,
   toolsTable,
   traceEventsTable,
+  workflowStepsTable,
 } from "./schema";
 import { db } from "./connection";
 
@@ -58,7 +59,7 @@ export function seedDatabaseIfNeeded() {
           id: runId,
           scenarioId: scenario.id,
           workflow: scenario.title,
-          status: scenario.executionRecord.status,
+          status: "completed",
           duration: scenario.executionRecord.duration,
           tokens: scenario.costSummary.totalTokens,
           cost: scenario.costSummary.totalCost,
@@ -66,9 +67,29 @@ export function seedDatabaseIfNeeded() {
           currentStepId: null,
           costSummaryJson: JSON.stringify(costSummary),
           finalArtifactJson: JSON.stringify(finalArtifact),
+          startedAt: null,
+          completedAt: now,
+          cancelledAt: null,
           createdAt: now,
           updatedAt: now,
         })
+        .run();
+
+      db.insert(workflowStepsTable)
+        .values(
+          scenario.steps.map((step) => ({
+            id: `${runId}-${step.id}`,
+            runId,
+            stepId: step.id,
+            label: step.label,
+            agent: step.agent,
+            status: "completed",
+            sequence: step.order,
+            startedAt: null,
+            completedAt: now,
+            updatedAt: now,
+          })),
+        )
         .run();
 
       db.insert(traceEventsTable)
@@ -106,6 +127,8 @@ export function seedDatabaseIfNeeded() {
         .run();
     });
   }
+
+  seedMissingWorkflowSteps(now);
 
   seeded = true;
   return getSeedStatus();
@@ -196,4 +219,36 @@ function seedSettingsIfNeeded(now: string) {
       updatedAt: now,
     })
     .run();
+}
+
+function seedMissingWorkflowSteps(now: string) {
+  const runs = db.select().from(runsTable).all();
+  runs.forEach((run) => {
+    const [{ total }] = db
+      .select({ total: count() })
+      .from(workflowStepsTable)
+      .where(eq(workflowStepsTable.runId, run.id))
+      .all();
+    if (total > 0) return;
+
+    const scenario = DEMO_SCENARIOS.find((item) => item.id === run.scenarioId);
+    if (!scenario) return;
+
+    db.insert(workflowStepsTable)
+      .values(
+        scenario.steps.map((step) => ({
+          id: `${run.id}-${step.id}`,
+          runId: run.id,
+          stepId: step.id,
+          label: step.label,
+          agent: step.agent,
+          status: run.status === "completed" ? "completed" : "pending",
+          sequence: step.order,
+          startedAt: null,
+          completedAt: run.status === "completed" ? now : null,
+          updatedAt: now,
+        })),
+      )
+      .run();
+  });
 }

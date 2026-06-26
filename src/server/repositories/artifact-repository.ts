@@ -19,6 +19,35 @@ export class ArtifactRepository {
       markdown: artifact.markdown,
     };
   }
+
+  upsertForRun(artifact: ApiFinalArtifact) {
+    const now = new Date().toISOString();
+    db.insert(artifactsTable)
+      .values({
+        runId: artifact.runId,
+        title: artifact.title,
+        filename: artifact.filename,
+        sizeLabel: artifact.sizeLabel,
+        status: artifact.status,
+        approvedBy: artifact.approvedBy,
+        markdown: artifact.markdown,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: artifactsTable.runId,
+        set: {
+          title: artifact.title,
+          filename: artifact.filename,
+          sizeLabel: artifact.sizeLabel,
+          status: artifact.status,
+          approvedBy: artifact.approvedBy,
+          markdown: artifact.markdown,
+          updatedAt: now,
+        },
+      })
+      .run();
+  }
 }
 
 export const artifactRepository = new ArtifactRepository();
