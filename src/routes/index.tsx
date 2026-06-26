@@ -18,6 +18,8 @@ import {
   Zap,
   PlayCircle,
   ArrowRight,
+  FileText,
+  Bug,
 } from "lucide-react";
 import {
   Area,
@@ -173,19 +175,35 @@ function Dashboard() {
                   <Play className="h-4 w-4 mr-1.5" /> Run Demo Workflow
                 </Button>
               )}
+              <Button
+                asChild
+                className="h-10 bg-white/5 hover:bg-white/10 border border-border/60 text-foreground"
+              >
+                <Link to="/debugger">
+                  <Bug className="h-4 w-4 mr-1.5" /> View in Debugger
+                </Link>
+              </Button>
+              <Button
+                asChild
+                className="h-10 bg-white/5 hover:bg-white/10 border border-border/60 text-foreground"
+              >
+                <Link to="/workflow">
+                  <FileText className="h-4 w-4 mr-1.5" /> View Final Artifact
+                </Link>
+              </Button>
               <span className="text-xs text-muted-foreground">
                 User → Planner → Research → Code → Docs → QA → Reviewer → Final
               </span>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3 lg:min-w-[420px]">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:min-w-[420px]">
             {[
               { k: "Workflows", v: "284" },
               { k: "Agents", v: "12" },
               { k: "Models", v: "4" },
             ].map((s) => (
-              <div key={s.k} className="rounded-xl glass p-3 text-center">
-                <div className="text-2xl font-semibold">{s.v}</div>
+              <div key={s.k} className="rounded-xl glass p-3 text-center min-w-0">
+                <div className="text-xl sm:text-2xl font-semibold">{s.v}</div>
                 <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                   {s.k}
                 </div>
@@ -196,13 +214,20 @@ function Dashboard() {
 
         {/* Demo strip */}
         {(demo.isRunning || demo.isComplete) && (
-          <div className="relative mt-6 rounded-xl glass p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                Live demo trace
+          <div className="relative mt-6 rounded-xl glass p-4 border border-[var(--electric)]/20">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+              <div>
+                <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  Live demo trace
+                </div>
+                <div className="text-sm font-medium">
+                  {demo.isComplete
+                    ? "Workflow completed and approved"
+                    : "Agents are executing the documentation workflow"}
+                </div>
               </div>
               <StatBadge tone={demo.isComplete ? "success" : "info"}>
-                {demo.isComplete ? "Completed" : "Running"}
+                {demo.isComplete ? "Success" : "Running live"}
               </StatBadge>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
@@ -234,25 +259,31 @@ function Dashboard() {
               })}
             </div>
             <div className="mt-3 max-h-32 overflow-auto font-mono text-[11px] space-y-0.5">
-              {demo.logs.slice(-6).map((l, i) => (
-                <div key={i} className="flex gap-2">
-                  <span className="text-muted-foreground">[{l.ts}]</span>
-                  <span className="text-[var(--electric)]">{l.agent}</span>
-                  <span
-                    className={
-                      l.tone === "warn"
-                        ? "text-[var(--amber)]"
-                        : l.tone === "success"
-                          ? "text-[var(--emerald)]"
-                          : l.tone === "error"
-                            ? "text-[var(--destructive)]"
-                            : "text-muted-foreground"
-                    }
-                  >
-                    {l.message}
-                  </span>
+              {demo.logs.length === 0 ? (
+                <div className="rounded-lg border border-border/60 bg-white/[0.03] p-3 text-muted-foreground">
+                  Waiting for the first agent event...
                 </div>
-              ))}
+              ) : (
+                demo.logs.slice(-6).map((l, i) => (
+                  <div key={i} className="flex gap-2">
+                    <span className="text-muted-foreground">[{l.ts}]</span>
+                    <span className="text-[var(--electric)]">{l.agent}</span>
+                    <span
+                      className={
+                        l.tone === "warn"
+                          ? "text-[var(--amber)]"
+                          : l.tone === "success"
+                            ? "text-[var(--emerald)]"
+                            : l.tone === "error"
+                              ? "text-[var(--destructive)]"
+                              : "text-muted-foreground"
+                      }
+                    >
+                      {l.message}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -563,10 +594,12 @@ function Dashboard() {
       {/* Recent executions */}
       <div ref={executionsRef} className="scroll-mt-20">
         <Panel>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
             <div>
               <div className="text-sm font-semibold">Recent executions</div>
-              <div className="text-xs text-muted-foreground">Last runs across all environments</div>
+              <div className="text-xs text-muted-foreground">
+                Select the demo run to inspect prompts, tool calls, retries, and final output.
+              </div>
             </div>
             <StatBadge tone="info">Live tail</StatBadge>
           </div>
@@ -601,7 +634,14 @@ function Dashboard() {
                     </td>
                     <td className="text-right tabular-nums text-xs">$0.41</td>
                     <td className="text-right text-xs text-muted-foreground">just now</td>
-                    <td />
+                    <td className="text-right pl-3">
+                      <Link
+                        to="/debugger"
+                        className="text-[11px] font-medium text-[var(--electric)] hover:text-[var(--cyan)] whitespace-nowrap"
+                      >
+                        View in Debugger →
+                      </Link>
+                    </td>
                   </tr>
                 )}
                 {demo.completedExecutions.map((e) => {

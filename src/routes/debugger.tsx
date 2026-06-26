@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader, Panel, StatBadge, StatusDot } from "@/components/ui/page";
@@ -10,7 +10,7 @@ import {
   FINAL_OUTPUT_TITLE,
 } from "@/lib/final-output";
 import { useDemo, DEMO_EXECUTION } from "@/lib/demo-context";
-import { AlertTriangle, FileText, RefreshCw } from "lucide-react";
+import { AlertTriangle, FileText, RefreshCw, GitBranch } from "lucide-react";
 
 export const Route = createFileRoute("/debugger")({
   head: () => ({
@@ -46,7 +46,7 @@ function DebuggerPage() {
     <div className="space-y-6">
       <PageHeader
         title="Debugger"
-        description="Chrome DevTools for AI agents: step through prompts, tool calls, memory and retries."
+        description="Trace every agent decision: prompt, tool call, retry, memory read, and approved artifact."
         actions={
           <select
             value={effectiveExec}
@@ -62,6 +62,39 @@ function DebuggerPage() {
         }
       />
 
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="rounded-xl glass p-4 border border-[var(--electric)]/20">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Selected execution
+          </div>
+          <div className="mt-1 text-sm font-semibold truncate">{selected.workflow}</div>
+          <div className="mt-1 text-xs text-muted-foreground font-mono">{selected.id}</div>
+        </div>
+        <div className="rounded-xl glass p-4">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            What this proves
+          </div>
+          <div className="mt-1 text-sm font-semibold">Observable agent execution</div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            View the exact prompt, tool call, retry, and reviewer-approved output.
+          </p>
+        </div>
+        <div className="rounded-xl glass p-4 flex flex-col justify-between gap-3">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Demo path
+            </div>
+            <div className="mt-1 text-sm font-semibold">Workflow → Debugger → Artifact</div>
+          </div>
+          <Link
+            to="/workflow"
+            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border/60 bg-white/[0.04] px-3 text-xs font-medium hover:bg-white/[0.08]"
+          >
+            <GitBranch className="h-3.5 w-3.5" /> View Workflow
+          </Link>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-[300px_1fr] gap-4">
         <Panel className="p-0 overflow-hidden">
           <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between gap-2">
@@ -75,7 +108,9 @@ function DebuggerPage() {
                   : "7 steps · 1 retry · 9.4s total"}
               </div>
             </div>
-            <StatBadge tone="success">passed</StatBadge>
+            <StatBadge tone={isDemoRun ? "success" : "info"}>
+              {isDemoRun ? "demo selected" : "sample trace"}
+            </StatBadge>
           </div>
           <div className="p-2 relative">
             <div className="absolute left-[28px] top-3 bottom-3 w-px bg-border/60" />
@@ -86,7 +121,7 @@ function DebuggerPage() {
                 <button
                   key={s.id}
                   onClick={() => setStepId(s.id)}
-                  className={`relative w-full text-left rounded-lg px-3 py-2.5 flex items-start gap-3 transition ${active ? "bg-white/[0.08] ring-1 ring-[var(--electric)]/40" : "hover:bg-white/[0.04]"}`}
+                  className={`relative w-full text-left rounded-lg px-3 py-2.5 flex items-start gap-3 transition ${active ? "bg-[var(--electric)]/10 ring-1 ring-[var(--electric)]/60 shadow-[0_0_24px_-18px_oklch(0.72_0.2_250/0.8)]" : "hover:bg-white/[0.04]"}`}
                 >
                   <div className="relative z-10 h-5 w-5 rounded-full grid place-items-center text-[10px] font-mono bg-background border border-border">
                     {isRetry ? <RefreshCw className="h-3 w-3 text-[var(--amber)]" /> : i + 1}
@@ -120,7 +155,15 @@ function DebuggerPage() {
                 {step.cost.toFixed(2)}
               </div>
             </div>
-            <StatBadge tone={failed ? "warn" : "success"}>{step.status}</StatBadge>
+            <div className="flex items-center gap-2">
+              <StatBadge tone={failed ? "warn" : "success"}>{step.status}</StatBadge>
+              <StatBadge tone="info">step evidence</StatBadge>
+            </div>
+          </div>
+
+          <div className="mb-4 rounded-xl border border-border/60 bg-white/[0.03] p-3 text-xs text-muted-foreground">
+            This panel shows why the output is trustworthy: each step exposes the model prompt, tool
+            result, memory access, retry handling, and final artifact.
           </div>
 
           {failed && (
@@ -214,9 +257,9 @@ recovered:  true`}</CodeBlock>
             <TabsContent value="final">
               <div className="mt-3 rounded-xl border border-border/60 bg-black/30 overflow-hidden">
                 <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 bg-white/[0.03]">
-                  <div className="flex items-center gap-2 text-xs">
+                  <div className="flex items-center gap-2 text-xs min-w-0">
                     <FileText className="h-3.5 w-3.5 text-[var(--cyan)]" />
-                    <span className="font-medium">{FINAL_OUTPUT_TITLE}</span>
+                    <span className="font-medium truncate">{FINAL_OUTPUT_TITLE}</span>
                     <span className="text-muted-foreground font-mono">
                       · {FINAL_OUTPUT_FILENAME}
                     </span>

@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Play, RotateCcw, Rewind, FileText, Maximize2 } from "lucide-react";
+import { Play, RotateCcw, Rewind, FileText, Bug, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Panel, StatBadge, StatusDot } from "@/components/ui/page";
 import { DEMO_NODES, useDemo, type DemoNodeId } from "@/lib/demo-context";
@@ -68,36 +68,54 @@ function WorkflowPage() {
     <div className="space-y-6">
       <PageHeader
         title="Workflow Canvas"
-        description="LangGraph-style orchestration. Animate runs, inspect nodes, and replay traces."
+        description="Follow the investor demo from user request to reviewed final artifact."
         actions={
-          <>
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={demo.start}
               disabled={demo.isRunning}
-              className="bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0"
+              className="bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0 shadow-[0_10px_30px_-16px_oklch(0.72_0.2_250/0.9)]"
             >
-              <Play className="h-3.5 w-3.5 mr-1.5" /> {demo.isComplete ? "Run Again" : "Run"}
+              <Play className="h-3.5 w-3.5 mr-1.5" />{" "}
+              {demo.isComplete ? "Run Demo Again" : "Run Demo Workflow"}
             </Button>
-            <Button variant="outline" onClick={demo.start}>
+            <Button variant="outline" onClick={demo.start} disabled={demo.isRunning}>
               <Rewind className="h-3.5 w-3.5 mr-1.5" /> Replay
             </Button>
             <Button variant="outline" onClick={demo.reset}>
               <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset
             </Button>
+            <Button asChild variant="outline">
+              <Link to="/debugger">
+                <Bug className="h-3.5 w-3.5 mr-1.5" /> View in Debugger
+              </Link>
+            </Button>
             {demo.isComplete && (
-              <Button variant="outline" onClick={() => setShowOutput((v) => !v)}>
-                <FileText className="h-3.5 w-3.5 mr-1.5" /> {showOutput ? "Hide" : "View"} output
+              <Button onClick={() => setShowOutput((v) => !v)}>
+                <FileText className="h-3.5 w-3.5 mr-1.5" />{" "}
+                {showOutput ? "Hide Artifact" : "View Final Artifact"}
               </Button>
             )}
-          </>
+          </div>
         }
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-4">
         <Panel className="p-0 overflow-hidden">
+          <div className="border-b border-border/60 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <div className="text-sm font-semibold">Payments API documentation run</div>
+              <div className="text-xs text-muted-foreground">
+                Planner routes work across research, code, docs, QA, and reviewer agents.
+              </div>
+            </div>
+            <StatBadge tone={demo.isComplete ? "success" : demo.isRunning ? "info" : "default"}>
+              {demo.isComplete ? "Approved" : demo.isRunning ? "Running live" : "Ready"}
+            </StatBadge>
+          </div>
           <div
             className="relative grid-bg w-full"
-            style={{ aspectRatio: "1200 / 520", minHeight: 380 }}
+            style={{ aspectRatio: "1200 / 520", minHeight: 320 }}
           >
             <svg
               viewBox="0 0 1200 520"
@@ -280,11 +298,11 @@ function WorkflowPage() {
           </div>
         </Panel>
 
-        <Panel>
+        <Panel className={activeStatus === "running" ? "ring-1 ring-[var(--electric)]/35" : ""}>
           <div className="flex items-center justify-between">
             <div>
               <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                Node
+                Selected node
               </div>
               <div className="mt-1 text-lg font-semibold">{active.label}</div>
             </div>
@@ -302,7 +320,11 @@ function WorkflowPage() {
               {activeStatus}
             </StatBadge>
           </div>
-          <div className="mt-1 text-xs text-muted-foreground">{active.agent}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {active.agent === "—"
+              ? "Boundary step in the demo workflow"
+              : `${active.agent} handles this step in the run.`}
+          </div>
 
           <div className="mt-4 space-y-2.5 text-sm">
             <Field label="Status" value={activeStatus} />
@@ -358,7 +380,7 @@ function WorkflowPage() {
               ))}
             {demo.logs.filter((l) => l.agent === active.agent).length === 0 && (
               <div className="text-[11px] text-muted-foreground">
-                No events yet. Run the workflow.
+                No events for this node yet. Select another node or run the workflow.
               </div>
             )}
           </div>
@@ -381,11 +403,11 @@ function WorkflowPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <StatBadge tone="success">QA 14/14 passed</StatBadge>
+              <StatBadge tone="success">
+                <CheckCircle2 className="h-3 w-3" /> QA 14/14 passed
+              </StatBadge>
               <CopyButton text={FINAL_OUTPUT_MARKDOWN} />
-              <button className="h-7 px-2 rounded-md text-[11px] bg-white/5 border border-border/60 hover:bg-white/10 inline-flex items-center gap-1.5">
-                <Maximize2 className="h-3 w-3" /> Open
-              </button>
+              <StatBadge tone="info">Preview artifact</StatBadge>
             </div>
           </div>
           <pre className="mt-4 rounded-xl bg-black/50 border border-border/60 p-4 text-[11.5px] font-mono leading-relaxed text-muted-foreground whitespace-pre-wrap overflow-x-auto max-h-[420px] overflow-y-auto">

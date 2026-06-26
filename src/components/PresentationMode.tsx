@@ -57,7 +57,7 @@ export function PresentationMode() {
         <div className="flex items-center gap-3">
           <StatBadge tone="info">Presentation Mode</StatBadge>
           <div className="text-sm text-muted-foreground hidden md:block">
-            GPT Omni Agents · Multi-Agent Workflow Demo
+            GPT Omni Agents · investor walkthrough
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -78,7 +78,7 @@ export function PresentationMode() {
         </div>
       </header>
 
-      <div className="relative flex-1 overflow-auto px-6 lg:px-16 py-10">
+      <div className="relative flex-1 overflow-auto px-4 sm:px-6 lg:px-16 py-8 lg:py-10">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl glass grid place-items-center">
@@ -88,7 +88,7 @@ export function PresentationMode() {
               <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                 Slide {i + 1} / {slides.length}
               </div>
-              <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight">
                 <span className="text-gradient">{slide.title}</span>
               </h2>
             </div>
@@ -113,7 +113,7 @@ export function PresentationMode() {
           <ChevronLeft className="h-4 w-4" /> Previous
         </button>
         <div className="text-xs text-muted-foreground hidden md:block">
-          Use ← → keys · Esc to exit
+          Guided story: problem → workflow → debugger → business value
         </div>
         <button
           onClick={() => setI((v) => Math.min(slides.length - 1, v + 1))}
@@ -129,10 +129,10 @@ export function PresentationMode() {
 
 function ProblemSlide() {
   return (
-    <div className="grid md:grid-cols-2 gap-6">
+    <div className="grid md:grid-cols-2 gap-4 lg:gap-6">
       <div className="rounded-2xl glass p-6">
         <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Today</div>
-        <p className="mt-2 text-lg">
+        <p className="mt-2 text-base lg:text-lg">
           A single LLM call can't reliably produce production-grade engineering deliverables — docs,
           refactors, audits, deploys.
         </p>
@@ -146,7 +146,7 @@ function ProblemSlide() {
         <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
           With GPT Omni Agents
         </div>
-        <p className="mt-2 text-lg">
+        <p className="mt-2 text-base lg:text-lg">
           A network of specialized agents plans, executes, reviews, debugs and observes every
           workflow end-to-end.
         </p>
@@ -185,15 +185,18 @@ function WorkflowSlide() {
   const demo = useDemo();
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          Goal · Create API documentation for payments service
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold">Goal · Create API documentation</div>
+          <div className="text-xs text-muted-foreground">
+            Watch planner, research, code, docs, QA, and reviewer agents coordinate one artifact.
+          </div>
         </div>
         <button
           onClick={() => demo.start()}
           className="h-9 px-4 rounded-lg bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white text-sm"
         >
-          Replay
+          Replay Workflow
         </button>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
@@ -260,7 +263,16 @@ function WorkflowSlide() {
 function DebugSlide() {
   return (
     <div className="rounded-2xl glass p-6">
-      <div className="text-sm font-semibold">Documentation Agent · draft v1 → retry</div>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold">Documentation Agent · draft v1 → retry</div>
+          <div className="text-xs text-muted-foreground">
+            The debugger proves recovery, governance, and artifact quality instead of hiding the
+            failure.
+          </div>
+        </div>
+        <StatBadge tone="success">recovered</StatBadge>
+      </div>
       <div className="text-xs text-muted-foreground">
         attempt 1: ToolTimeoutError schema_to_md exceeded 2500ms
       </div>
