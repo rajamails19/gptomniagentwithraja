@@ -7,6 +7,17 @@ export type ApiHealth = {
   mode: string;
   scenarioCount: number;
   runCount: number;
+  database?: {
+    connected: boolean;
+    storageType: "sqlite";
+    path: string;
+    migrations: "applied";
+    seed: {
+      seeded: boolean;
+      scenarios: number;
+      runs: number;
+    };
+  };
   timestamp: string;
 };
 

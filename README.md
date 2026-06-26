@@ -14,6 +14,8 @@ This project is currently positioned as a client/investor-ready product demo. It
 - Tailwind CSS v4
 - Radix UI / shadcn-style components
 - Recharts
+- Drizzle ORM
+- SQLite for local persistence
 - Nitro Vercel preset
 
 ## Local Development
@@ -46,7 +48,24 @@ Backend code is organized under `src/server/`:
 - `types/` - server API types
 - `utils/` - HTTP responses, structured errors, and request logging
 
-Storage is currently in-memory and seeded from the deterministic demo scenarios. Repositories are the replacement point for PostgreSQL later.
+Runs, trace events, and artifacts are persisted in a local SQLite database through Drizzle ORM. Scenarios, agents, tools, and settings are still seeded from deterministic demo data and exposed through repository boundaries.
+
+Local database:
+
+- Default path: `.data/gptomniagents.sqlite`
+- Override path: `GPT_OMNI_SQLITE_PATH=/absolute/path/to/file.sqlite`
+- Generated SQLite files are ignored by git.
+
+Database commands:
+
+```sh
+npm run db:migrate
+npm run db:seed
+npm run db:generate
+npm run db:studio
+```
+
+`db:migrate` creates local SQLite tables if missing. `db:seed` inserts deterministic demo rows only when the database is empty, so restarts do not duplicate runs.
 
 Available endpoints:
 
@@ -87,6 +106,14 @@ Developer API explorer:
 
 - Visit `/developer/api` while the dev server is running.
 - It displays registered routes, sample requests, sample responses, API status, and recent request logs.
+
+PostgreSQL migration path:
+
+- Keep the API client and service methods unchanged.
+- Replace SQLite table definitions with Drizzle PostgreSQL table definitions.
+- Replace the SQLite connection in `src/server/db/connection.ts` with a PostgreSQL connection.
+- Preserve repository method contracts such as `list`, `findById`, `create`, `listForRun`, and `findForRun`.
+- Move local `.data/` storage to managed PostgreSQL tables for `scenarios`, `runs`, `trace_events`, `artifacts`, `agents`, `tools`, and `settings`.
 
 ## Vercel Deployment
 

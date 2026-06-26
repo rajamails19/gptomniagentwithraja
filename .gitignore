@@ -18,6 +18,12 @@ dist-ssr
 .vite
 coverage
 *.local
+.data/
+drizzle/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
 
 # Wrangler / Cloudflare
 .wrangler/

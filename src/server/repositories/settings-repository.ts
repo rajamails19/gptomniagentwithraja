@@ -2,7 +2,7 @@ export type ApiSettings = {
   workspaceName: string;
   defaultEnvironment: string;
   region: string;
-  storageMode: "in-memory";
+  storageMode: "sqlite";
   apiVersion: string;
   guardrails: {
     piiRedaction: boolean;
@@ -17,7 +17,7 @@ export class SettingsRepository {
       workspaceName: "GPT Omni Agents Demo",
       defaultEnvironment: "development",
       region: "local",
-      storageMode: "in-memory",
+      storageMode: "sqlite",
       apiVersion: "v1",
       guardrails: {
         piiRedaction: true,

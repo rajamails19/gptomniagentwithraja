@@ -28,6 +28,17 @@ export const healthResponseSchema = z.object({
   mode: z.string(),
   scenarioCount: z.number(),
   runCount: z.number(),
+  database: z.object({
+    connected: z.boolean(),
+    storageType: z.literal("sqlite"),
+    path: z.string(),
+    migrations: z.literal("applied"),
+    seed: z.object({
+      seeded: z.boolean(),
+      scenarios: z.number(),
+      runs: z.number(),
+    }),
+  }),
   timestamp: z.string(),
 });
 
