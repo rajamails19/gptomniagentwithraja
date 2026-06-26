@@ -43,11 +43,11 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dashboard — AI Agent Studio" },
+      { title: "Dashboard — GPT Omni Agents" },
       {
         name: "description",
         content:
-          "Executive overview of multi-agent AI workflow executions, cost, latency, and health.",
+          "AI agent control room for planning, execution, debugging, monitoring, and governance.",
       },
     ],
   }),
@@ -153,7 +153,7 @@ function Dashboard() {
               multi-agent AI workflows.
             </h2>
             <p className="mt-3 text-sm text-muted-foreground">
-              AI Agent Studio demonstrates how modern AI systems use a planner, orchestrator,
+              GPT Omni Agents demonstrates how modern AI systems use a planner, orchestrator,
               specialized sub-agents, tools, memory, debugging, monitoring, and cost governance to
               run production-grade workflows.
             </p>

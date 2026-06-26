@@ -57,7 +57,7 @@ export function PresentationMode() {
         <div className="flex items-center gap-3">
           <StatBadge tone="info">Presentation Mode</StatBadge>
           <div className="text-sm text-muted-foreground hidden md:block">
-            AI Agent Studio · Multi-Agent Workflow Demo
+            GPT Omni Agents · Multi-Agent Workflow Demo
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -144,7 +144,7 @@ function ProblemSlide() {
       </div>
       <div className="rounded-2xl glass p-6">
         <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-          With AI Agent Studio
+          With GPT Omni Agents
         </div>
         <p className="mt-2 text-lg">
           A network of specialized agents plans, executes, reviews, debugs and observes every

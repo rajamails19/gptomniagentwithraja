@@ -15,7 +15,7 @@ import { AlertTriangle, FileText, RefreshCw } from "lucide-react";
 export const Route = createFileRoute("/debugger")({
   head: () => ({
     meta: [
-      { title: "Debugger — AI Agent Studio" },
+      { title: "Debugger — GPT Omni Agents" },
       {
         name: "description",
         content:

@@ -80,26 +80,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "AI Agent Studio — Multi-Agent Workflow Control Room" },
+      { title: "GPT Omni Agents — AI Agent Control Room" },
       {
         name: "description",
         content:
-          "Design, run, debug, and monitor multi-agent AI workflows in one premium control room.",
+          "AI agent control room for planning, execution, debugging, monitoring, and governance.",
       },
-      { name: "author", content: "AI Agent Studio" },
-      { property: "og:title", content: "AI Agent Studio — Multi-Agent Workflow Control Room" },
+      { name: "author", content: "GPT Omni Agents" },
+      { property: "og:title", content: "GPT Omni Agents — AI Agent Control Room" },
       {
         property: "og:description",
         content:
-          "Design, run, debug, and monitor multi-agent AI workflows in one premium control room.",
+          "AI agent control room for planning, execution, debugging, monitoring, and governance.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "AI Agent Studio — Multi-Agent Workflow Control Room" },
+      { name: "twitter:title", content: "GPT Omni Agents — AI Agent Control Room" },
       {
         name: "twitter:description",
         content:
-          "Design, run, debug, and monitor multi-agent AI workflows in one premium control room.",
+          "AI agent control room for planning, execution, debugging, monitoring, and governance.",
       },
       {
         property: "og:image",

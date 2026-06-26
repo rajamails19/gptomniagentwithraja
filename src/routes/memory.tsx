@@ -6,7 +6,7 @@ import { memoryCards } from "@/lib/mock-data";
 export const Route = createFileRoute("/memory")({
   head: () => ({
     meta: [
-      { title: "Memory Explorer — AI Agent Studio" },
+      { title: "Memory Explorer — GPT Omni Agents" },
       {
         name: "description",
         content: "Inspect session memory, long-term store, retrieved chunks and vector results.",

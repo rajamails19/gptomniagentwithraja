@@ -3,7 +3,7 @@ import { PageHeader, Panel } from "@/components/ui/page";
 import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/settings")({
-  head: () => ({ meta: [{ title: "Settings — AI Agent Studio" }] }),
+  head: () => ({ meta: [{ title: "Settings — GPT Omni Agents" }] }),
   component: SettingsPage,
 });
 

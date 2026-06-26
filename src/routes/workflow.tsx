@@ -14,7 +14,7 @@ import { CopyButton } from "@/components/CopyButton";
 export const Route = createFileRoute("/workflow")({
   head: () => ({
     meta: [
-      { title: "Workflow Canvas — AI Agent Studio" },
+      { title: "Workflow Canvas — GPT Omni Agents" },
       {
         name: "description",
         content: "LangGraph-style multi-agent orchestration with live execution status.",

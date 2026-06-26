@@ -1,4 +1,4 @@
-// Centralized realistic mock data for AI Agent Studio.
+// Centralized realistic mock data for GPT Omni Agents.
 
 export type AgentStatus = "idle" | "running" | "success" | "error" | "queued";
 

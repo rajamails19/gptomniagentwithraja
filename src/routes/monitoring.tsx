@@ -22,7 +22,7 @@ import { agents, alerts, dashboardSeries, modelBreakdown } from "@/lib/mock-data
 export const Route = createFileRoute("/monitoring")({
   head: () => ({
     meta: [
-      { title: "Monitoring — AI Agent Studio" },
+      { title: "Monitoring — GPT Omni Agents" },
       {
         name: "description",
         content: "Live observability for agents, latency, tokens, costs, errors and queues.",

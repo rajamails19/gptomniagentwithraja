@@ -17,7 +17,7 @@ import { costByAgent, costByWorkflow, monthlyCost } from "@/lib/mock-data";
 export const Route = createFileRoute("/cost")({
   head: () => ({
     meta: [
-      { title: "Cost Analytics — AI Agent Studio" },
+      { title: "Cost Analytics — GPT Omni Agents" },
       {
         name: "description",
         content:

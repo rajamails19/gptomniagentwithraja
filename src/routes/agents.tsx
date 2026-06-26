@@ -11,7 +11,7 @@ import { CopyButton } from "@/components/CopyButton";
 export const Route = createFileRoute("/agents")({
   head: () => ({
     meta: [
-      { title: "Agents — AI Agent Studio" },
+      { title: "Agents — GPT Omni Agents" },
       {
         name: "description",
         content: "Specialized sub-agents with skills, tools, models, costs and health.",
