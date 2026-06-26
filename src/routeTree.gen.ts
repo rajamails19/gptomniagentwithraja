@@ -20,6 +20,7 @@ import { Route as DebuggerRouteImport } from './routes/debugger'
 import { Route as CostRouteImport } from './routes/cost'
 import { Route as AgentsRouteImport } from './routes/agents'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DeveloperApiRouteImport } from './routes/developer.api'
 
 const WorkflowRoute = WorkflowRouteImport.update({
   id: '/workflow',
@@ -76,6 +77,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeveloperApiRoute = DeveloperApiRouteImport.update({
+  id: '/developer/api',
+  path: '/developer/api',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/tools': typeof ToolsRoute
   '/workflow': typeof WorkflowRoute
+  '/developer/api': typeof DeveloperApiRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/tools': typeof ToolsRoute
   '/workflow': typeof WorkflowRoute
+  '/developer/api': typeof DeveloperApiRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/tools': typeof ToolsRoute
   '/workflow': typeof WorkflowRoute
+  '/developer/api': typeof DeveloperApiRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tools'
     | '/workflow'
+    | '/developer/api'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tools'
     | '/workflow'
+    | '/developer/api'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tools'
     | '/workflow'
+    | '/developer/api'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +183,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   ToolsRoute: typeof ToolsRoute
   WorkflowRoute: typeof WorkflowRoute
+  DeveloperApiRoute: typeof DeveloperApiRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/developer/api': {
+      id: '/developer/api'
+      path: '/developer/api'
+      fullPath: '/developer/api'
+      preLoaderRoute: typeof DeveloperApiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -267,6 +287,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   ToolsRoute: ToolsRoute,
   WorkflowRoute: WorkflowRoute,
+  DeveloperApiRoute: DeveloperApiRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

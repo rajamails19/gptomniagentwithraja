@@ -33,40 +33,60 @@ npm run check
 
 `npm run check` runs lint and a production build. `npm run build` uses Nitro's Vercel preset and emits Vercel Build Output API files under `.vercel/output`.
 
-## Backend API Foundation
+## Backend Architecture
 
-The app now includes a minimal TanStack Start/Nitro API layer mounted from `src/server.ts`.
-Storage is currently in-memory and seeded from the deterministic demo scenarios.
+The app includes a versioned TanStack Start/Nitro API mounted from `src/server.ts`.
+Backend code is organized under `src/server/`:
+
+- `api/` - route registration and request dispatch
+- `services/` - business logic
+- `repositories/` - persistence boundary
+- `models/` - API/domain mappers
+- `validation/` - Zod schemas for params, bodies, and responses
+- `types/` - server API types
+- `utils/` - HTTP responses, structured errors, and request logging
+
+Storage is currently in-memory and seeded from the deterministic demo scenarios. Repositories are the replacement point for PostgreSQL later.
 
 Available endpoints:
 
-- `GET /api/health`
-- `GET /api/scenarios`
-- `GET /api/scenarios/:id`
-- `GET /api/runs`
-- `POST /api/runs`
-- `GET /api/runs/:id`
-- `GET /api/runs/:id/trace`
-- `GET /api/runs/:id/artifact`
+- `GET /api/v1/health`
+- `GET /api/v1/scenarios`
+- `GET /api/v1/scenarios/:id`
+- `GET /api/v1/runs`
+- `POST /api/v1/runs`
+- `GET /api/v1/runs/:id`
+- `GET /api/v1/runs/:id/trace`
+- `GET /api/v1/runs/:id/artifact`
+- `GET /api/v1/agents`
+- `GET /api/v1/tools`
+- `GET /api/v1/settings`
+- `GET /api/v1/developer/routes`
+- `GET /api/v1/developer/logs`
 
 Local API testing:
 
 ```sh
 npm run dev
 
-curl http://localhost:8087/api/health
-curl http://localhost:8087/api/scenarios
-curl http://localhost:8087/api/scenarios/security-incident
-curl http://localhost:8087/api/runs
-curl -X POST http://localhost:8087/api/runs \
+curl http://localhost:8087/api/v1/health
+curl http://localhost:8087/api/v1/scenarios
+curl http://localhost:8087/api/v1/scenarios/security-incident
+curl http://localhost:8087/api/v1/runs
+curl -X POST http://localhost:8087/api/v1/runs \
   -H "content-type: application/json" \
   -d '{"scenarioId":"pull-request-review"}'
-curl http://localhost:8087/api/runs/exec_pr_104
-curl http://localhost:8087/api/runs/exec_pr_104/trace
-curl http://localhost:8087/api/runs/exec_pr_104/artifact
+curl http://localhost:8087/api/v1/runs/exec_pr_104
+curl http://localhost:8087/api/v1/runs/exec_pr_104/trace
+curl http://localhost:8087/api/v1/runs/exec_pr_104/artifact
 ```
 
 If your local dev server starts on a different port, replace `8087` with the port printed by Vite.
+
+Developer API explorer:
+
+- Visit `/developer/api` while the dev server is running.
+- It displays registered routes, sample requests, sample responses, API status, and recent request logs.
 
 ## Vercel Deployment
 
