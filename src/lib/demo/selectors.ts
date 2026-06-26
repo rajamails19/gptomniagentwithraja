@@ -30,7 +30,9 @@ export function getCurrentRun(snapshot: DemoRuntimeSnapshot): DemoRun {
     goal: DEMO_SCENARIO.goal,
     currentStepId: DEMO_SCENARIO.steps[snapshot.currentIndex]?.id ?? null,
     stepStatuses: snapshot.statuses,
+    stepRuns: snapshot.engineRuntime.stepRuns,
     traceEvents,
+    toolCalls: snapshot.engineRuntime.visibleToolCalls,
     tokens: costSummary.totalTokens,
     cost: costSummary.totalCost,
     costSummary,
@@ -50,19 +52,9 @@ export function getTraceEventsForRun(
   snapshot: DemoRuntimeSnapshot,
   runId = DEMO_RUN_ID,
 ): TraceEvent[] {
-  return snapshot.logs.map((log, index) => {
-    const stepId = getStepIdForAgent(log.agent);
-    return {
-      id: `${runId}-event-${index + 1}`,
-      runId,
-      stepId,
-      ts: log.ts,
-      agent: log.agent,
-      message: log.message,
-      tone: log.tone,
-      type: getTraceType(log.message, stepId),
-    };
-  });
+  if (runId === DEMO_RUN_ID) return snapshot.engineRuntime.traceEvents;
+
+  return [];
 }
 
 export function getCostSummaryForRun(
@@ -74,10 +66,12 @@ export function getCostSummaryForRun(
   return {
     ...DEMO_SCENARIO.costSummary,
     runId,
-    totalCost: snapshot.isComplete ? DEMO_SCENARIO.costSummary.totalCost : 0.41,
+    totalCost: snapshot.isComplete
+      ? DEMO_SCENARIO.costSummary.totalCost
+      : snapshot.engineRuntime.runCost,
     totalTokens: snapshot.isComplete
       ? DEMO_SCENARIO.costSummary.totalTokens
-      : snapshot.metrics.tokens % 100000,
+      : snapshot.engineRuntime.runTokens,
   };
 }
 
@@ -90,17 +84,4 @@ export function getWorkflowStepStatus(
   stepId: DemoNodeId,
 ): DemoStatus {
   return snapshot.statuses[stepId];
-}
-
-function getStepIdForAgent(agent: string): DemoNodeId {
-  return DEMO_SCENARIO.steps.find((step) => step.agent === agent)?.id ?? "user";
-}
-
-function getTraceType(message: string, stepId: DemoNodeId): TraceEvent["type"] {
-  if (message.includes("ToolTimeoutError")) return "retry";
-  if (message.includes("Artifact published")) return "artifact";
-  if (message.includes("QA passed") || message.includes("Approved")) return "review";
-  if (message.includes("Retrieved") || message.includes("Found")) return "tool_result";
-  if (stepId === "research" || stepId === "code" || stepId === "docs") return "tool_call";
-  return "status";
 }

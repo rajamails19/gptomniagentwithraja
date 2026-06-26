@@ -16,6 +16,9 @@ export const DEMO_WORKFLOW_STEPS: WorkflowStep[] = [
     kind: "input",
     order: 1,
     description: "A stakeholder asks for production-grade payments API documentation.",
+    latencyMs: 120,
+    tokens: 220,
+    cost: 0,
   },
   {
     id: "planner",
@@ -24,6 +27,9 @@ export const DEMO_WORKFLOW_STEPS: WorkflowStep[] = [
     kind: "agent",
     order: 2,
     description: "Breaks the goal into dependent tasks and assigns specialist agents.",
+    latencyMs: 820,
+    tokens: 1240,
+    cost: 0.04,
   },
   {
     id: "research",
@@ -32,6 +38,9 @@ export const DEMO_WORKFLOW_STEPS: WorkflowStep[] = [
     kind: "agent",
     order: 3,
     description: "Retrieves OpenAPI context, style guides, and relevant source references.",
+    latencyMs: 1240,
+    tokens: 3820,
+    cost: 0.09,
   },
   {
     id: "code",
@@ -40,6 +49,9 @@ export const DEMO_WORKFLOW_STEPS: WorkflowStep[] = [
     kind: "agent",
     order: 4,
     description: "Scans route handlers and extracts endpoint/schema details.",
+    latencyMs: 1820,
+    tokens: 6210,
+    cost: 0.18,
   },
   {
     id: "docs",
@@ -48,6 +60,9 @@ export const DEMO_WORKFLOW_STEPS: WorkflowStep[] = [
     kind: "agent",
     order: 5,
     description: "Drafts the markdown API reference and handles schema conversion retries.",
+    latencyMs: 5030,
+    tokens: 19930,
+    cost: 0.63,
   },
   {
     id: "qa",
@@ -56,6 +71,9 @@ export const DEMO_WORKFLOW_STEPS: WorkflowStep[] = [
     kind: "agent",
     order: 6,
     description: "Runs a deterministic quality checklist against the generated artifact.",
+    latencyMs: 940,
+    tokens: 4120,
+    cost: 0.11,
   },
   {
     id: "reviewer",
@@ -64,6 +82,9 @@ export const DEMO_WORKFLOW_STEPS: WorkflowStep[] = [
     kind: "agent",
     order: 7,
     description: "Enforces style, checks risk, and approves the final artifact.",
+    latencyMs: 720,
+    tokens: 2210,
+    cost: 0.07,
   },
   {
     id: "final",
@@ -72,6 +93,9 @@ export const DEMO_WORKFLOW_STEPS: WorkflowStep[] = [
     kind: "output",
     order: 8,
     description: "Publishes the approved client-ready markdown artifact.",
+    latencyMs: 240,
+    tokens: 120,
+    cost: 0,
   },
 ];
 
@@ -93,33 +117,104 @@ export const DEMO_EXECUTION: ExecutionRecord = {
 };
 
 export const DEMO_STEP_MESSAGES: DemoScenario["stepMessages"] = {
-  user: [{ msg: "Goal received: Create API documentation for payments service", tone: "info" }],
+  user: [
+    {
+      msg: "Goal received: Create API documentation for payments service",
+      tone: "info",
+      type: "status",
+    },
+  ],
   planner: [
-    { msg: "Decomposing goal into 6 subtasks", tone: "info" },
-    { msg: "Dependency graph built · routed to 5 agents", tone: "success" },
+    { msg: "Decomposing goal into 6 subtasks", tone: "info", type: "prompt", latencyMs: 410 },
+    {
+      msg: "Dependency graph built · routed to 5 agents",
+      tone: "success",
+      type: "status",
+      latencyMs: 820,
+      cost: 0.04,
+    },
   ],
   research: [
-    { msg: "RAG retrieve openapi://payments@v4.2 · 0.94 similarity", tone: "info" },
-    { msg: "Retrieved 14 context chunks (1,284 tokens)", tone: "success" },
+    {
+      msg: "RAG retrieve openapi://payments@v4.2 · 0.94 similarity",
+      tone: "info",
+      type: "tool_call",
+      latencyMs: 640,
+      toolCallId: "tool_rag_retrieve",
+    },
+    {
+      msg: "Retrieved 14 context chunks (1,284 tokens)",
+      tone: "success",
+      type: "tool_result",
+      latencyMs: 1240,
+      cost: 0.09,
+      toolCallId: "tool_rag_retrieve",
+    },
   ],
   code: [
-    { msg: "Scanning /api/payments/* route handlers", tone: "info" },
-    { msg: "Found 12 endpoints · extracted Zod schemas", tone: "success" },
+    {
+      msg: "Scanning /api/payments/* route handlers",
+      tone: "info",
+      type: "tool_call",
+      latencyMs: 980,
+      toolCallId: "tool_code_search",
+    },
+    {
+      msg: "Found 12 endpoints · extracted Zod schemas",
+      tone: "success",
+      type: "tool_result",
+      latencyMs: 1820,
+      cost: 0.18,
+      toolCallId: "tool_code_search",
+    },
   ],
   docs: [
-    { msg: "Drafting markdown reference v1", tone: "info" },
-    { msg: "ToolTimeoutError schema_to_md > 2500ms · retry in 600ms", tone: "warn" },
-    { msg: "Draft v2 complete · 18.4KB markdown", tone: "success" },
+    { msg: "Drafting markdown reference v1", tone: "info", type: "prompt", latencyMs: 910 },
+    {
+      msg: "ToolTimeoutError schema_to_md > 2500ms · retry in 600ms",
+      tone: "warn",
+      type: "retry",
+      latencyMs: 2500,
+      toolCallId: "tool_schema_to_md_retry",
+    },
+    {
+      msg: "Draft v2 complete · 18.4KB markdown",
+      tone: "success",
+      type: "tool_result",
+      latencyMs: 5030,
+      cost: 0.63,
+      toolCallId: "tool_schema_to_md_retry",
+    },
   ],
   qa: [
-    { msg: "Running checklist · 14 items", tone: "info" },
-    { msg: "QA passed 14/14 · added error-code table", tone: "success" },
+    {
+      msg: "Running checklist · 14 items",
+      tone: "info",
+      type: "tool_call",
+      latencyMs: 520,
+      toolCallId: "tool_checklist",
+    },
+    {
+      msg: "QA passed 14/14 · added error-code table",
+      tone: "success",
+      type: "review",
+      latencyMs: 940,
+      cost: 0.11,
+      toolCallId: "tool_checklist",
+    },
   ],
   reviewer: [
-    { msg: "Style guide v3.2 enforced · 3 micro edits", tone: "info" },
-    { msg: "Approved · risk = low", tone: "success" },
+    { msg: "Style guide v3.2 enforced · 3 micro edits", tone: "info", type: "review" },
+    { msg: "Approved · risk = low", tone: "success", type: "review", latencyMs: 720, cost: 0.07 },
   ],
-  final: [{ msg: "Artifact published · payments-api-v4.2.md", tone: "success" }],
+  final: [
+    {
+      msg: "Artifact published · payments-api-v4.2.md",
+      tone: "success",
+      type: "artifact",
+      latencyMs: 240,
+    },
+  ],
 };
 
 export const DEMO_SCENARIO: DemoScenario = {
@@ -131,6 +226,26 @@ export const DEMO_SCENARIO: DemoScenario = {
   agents: mockAgents as Agent[],
   steps: DEMO_WORKFLOW_STEPS,
   toolCalls: [
+    {
+      id: "tool_rag_retrieve",
+      runId: DEMO_RUN_ID,
+      stepId: "research",
+      tool: "rag_retrieve",
+      status: "success",
+      latencyMs: 1240,
+      inputSummary: "Retrieve OpenAPI schema, style guide, and payments service notes.",
+      outputSummary: "Returned 14 high-similarity context chunks.",
+    },
+    {
+      id: "tool_code_search",
+      runId: DEMO_RUN_ID,
+      stepId: "code",
+      tool: "code_search",
+      status: "success",
+      latencyMs: 1820,
+      inputSummary: "Scan /api/payments/* route handlers and Zod schemas.",
+      outputSummary: "Found 12 endpoints and extracted request/response models.",
+    },
     {
       id: "tool_schema_to_md_retry",
       runId: DEMO_RUN_ID,

@@ -2,9 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader, Panel, StatBadge, StatusDot } from "@/components/ui/page";
-import { debugSteps, recentExecutions } from "@/lib/mock-data";
+import { recentExecutions } from "@/lib/mock-data";
 import { CopyButton } from "@/components/CopyButton";
-import { useDemo, DEMO_EXECUTION } from "@/lib/demo-context";
+import { useDemo, DEMO_EXECUTION, type DemoNodeId } from "@/lib/demo-context";
 import { AlertTriangle, FileText, RefreshCw, GitBranch } from "lucide-react";
 
 export const Route = createFileRoute("/debugger")({
@@ -34,9 +34,12 @@ function DebuggerPage() {
   const effectiveExec = executions.some((e) => e.id === exec) ? exec : executions[0].id;
   const selected = executions.find((e) => e.id === effectiveExec)!;
   const isDemoRun = selected.id === DEMO_EXECUTION.id;
-  const [stepId, setStepId] = useState(debugSteps[3].id);
-  const step = debugSteps.find((s) => s.id === stepId)!;
-  const failed = step.status === "retry";
+  const [stepId, setStepId] = useState<DemoNodeId>("docs");
+  const step = currentRun.stepRuns.find((s) => s.id === stepId) ?? currentRun.stepRuns[0];
+  const stepTraceEvents = currentRun.traceEvents.filter((event) => event.stepId === step.id);
+  const stepToolCalls = currentRun.toolCalls.filter((toolCall) => toolCall.stepId === step.id);
+  const primaryToolCall = stepToolCalls[0];
+  const failed = step.status === "retried" || step.status === "failed";
 
   return (
     <div className="space-y-6">
@@ -110,9 +113,9 @@ function DebuggerPage() {
           </div>
           <div className="p-2 relative">
             <div className="absolute left-[28px] top-3 bottom-3 w-px bg-border/60" />
-            {debugSteps.map((s, i) => {
+            {currentRun.stepRuns.map((s, i) => {
               const active = stepId === s.id;
-              const isRetry = s.status === "retry";
+              const isRetry = s.status === "retried" || s.status === "failed";
               return (
                 <button
                   key={s.id}
@@ -124,14 +127,24 @@ function DebuggerPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <StatusDot status={isRetry ? "error" : "success"} />
+                      <StatusDot
+                        status={
+                          s.status === "running"
+                            ? "running"
+                            : isRetry
+                              ? "error"
+                              : s.status === "pending"
+                                ? "queued"
+                                : "success"
+                        }
+                      />
                       <span className="text-xs font-medium truncate">{s.label}</span>
                     </div>
                     <div className="mt-0.5 text-[11px] text-muted-foreground truncate">
                       {s.agent}
                     </div>
                     <div className="mt-1 flex gap-2 text-[10px] text-muted-foreground tabular-nums">
-                      <span>{s.latency}ms</span>
+                      <span>{s.latencyMs}ms</span>
                       <span>· {s.tokens.toLocaleString()} tok</span>
                       <span>· ${s.cost.toFixed(2)}</span>
                     </div>
@@ -147,12 +160,24 @@ function DebuggerPage() {
             <div>
               <div className="text-sm font-semibold">{step.label}</div>
               <div className="text-xs text-muted-foreground">
-                {step.agent} · {step.latency}ms · {step.tokens.toLocaleString()} tokens · $
+                {step.agent} · {step.latencyMs}ms · {step.tokens.toLocaleString()} tokens · $
                 {step.cost.toFixed(2)}
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <StatBadge tone={failed ? "warn" : "success"}>{step.status}</StatBadge>
+              <StatBadge
+                tone={
+                  step.status === "running"
+                    ? "info"
+                    : failed
+                      ? "warn"
+                      : step.status === "pending"
+                        ? "default"
+                        : "success"
+                }
+              >
+                {step.status}
+              </StatBadge>
               <StatBadge tone="info">step evidence</StatBadge>
             </div>
           </div>
@@ -219,18 +244,18 @@ CONTEXT: {
             </TabsContent>
 
             <TabsContent value="tool">
-              <CodeBlock>{`tool: schema_to_md
+              <CodeBlock>{`tool: ${primaryToolCall?.tool ?? "waiting_for_step"}
 args: {
-  "schema_id": "openapi://payments@v4.2",
-  "format": "github"
+  "step": "${step.id}",
+  "input": "${primaryToolCall?.inputSummary ?? "Tool evidence appears when this step runs."}"
 }`}</CodeBlock>
             </TabsContent>
 
             <TabsContent value="result">
               <CodeBlock>{`{
-  "ok": true,
-  "bytes": 18420,
-  "warnings": ["missing description on POST /payments/refunds"]
+  "ok": ${primaryToolCall ? primaryToolCall.status !== "error" : false},
+  "latency_ms": ${primaryToolCall?.latencyMs ?? 0},
+  "summary": "${primaryToolCall?.outputSummary ?? "No tool result for this step yet."}"
 }`}</CodeBlock>
             </TabsContent>
 
@@ -244,10 +269,13 @@ writes: [
             </TabsContent>
 
             <TabsContent value="error">
-              <CodeBlock>{`attempt 1: ToolTimeoutError schema_to_md exceeded 2500ms
+              <CodeBlock>{`step:      ${step.label}
+status:    ${step.status}
+events:    ${stepTraceEvents.length}
+attempt 1: ${step.id === "docs" ? "ToolTimeoutError schema_to_md exceeded 2500ms" : "not required"}
 backoff:    600ms (exponential, jitter ±15%)
-attempt 2:  ok in 2410ms
-recovered:  true`}</CodeBlock>
+attempt 2:  ${step.id === "docs" ? "ok in 2410ms" : "not required"}
+recovered:  ${step.id === "docs"}`}</CodeBlock>
             </TabsContent>
 
             <TabsContent value="final">

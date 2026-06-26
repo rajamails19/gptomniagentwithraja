@@ -1,4 +1,5 @@
 export type DemoStatus = "idle" | "queued" | "running" | "success" | "error";
+export type WorkflowStepStatus = "pending" | "running" | "completed" | "retried" | "failed";
 export type DemoNodeId =
   | "user"
   | "planner"
@@ -27,6 +28,9 @@ export interface WorkflowStep {
   kind: "input" | "agent" | "output";
   order: number;
   description: string;
+  latencyMs: number;
+  tokens: number;
+  cost: number;
 }
 
 export interface TraceEvent {
@@ -38,6 +42,9 @@ export interface TraceEvent {
   message: string;
   tone: TraceTone;
   type: "prompt" | "tool_call" | "tool_result" | "retry" | "review" | "artifact" | "status";
+  latencyMs?: number;
+  cost?: number;
+  toolCallId?: string;
 }
 
 export interface ToolCall {
@@ -85,7 +92,9 @@ export interface DemoRun extends ExecutionRecord {
   goal: string;
   currentStepId: DemoNodeId | null;
   stepStatuses: Record<DemoNodeId, DemoStatus>;
+  stepRuns: WorkflowStepRun[];
   traceEvents: TraceEvent[];
+  toolCalls: ToolCall[];
   costSummary: CostSummary;
   finalArtifact: FinalArtifact;
 }
@@ -101,7 +110,17 @@ export interface DemoScenario {
   costSummary: CostSummary;
   finalArtifact: FinalArtifact;
   executionRecord: ExecutionRecord;
-  stepMessages: Record<DemoNodeId, Array<{ msg: string; tone: TraceTone }>>;
+  stepMessages: Record<
+    DemoNodeId,
+    Array<{
+      msg: string;
+      tone: TraceTone;
+      type?: TraceEvent["type"];
+      latencyMs?: number;
+      cost?: number;
+      toolCallId?: string;
+    }>
+  >;
 }
 
 export interface DemoMetrics {
@@ -126,4 +145,29 @@ export interface DemoRuntimeSnapshot {
   metrics: DemoMetrics;
   completedExecutions: ExecutionRecord[];
   lastCompletedId: string | null;
+  engineRuntime: DemoEngineRuntime;
+}
+
+export interface WorkflowStepRun extends WorkflowStep {
+  runId: string;
+  status: WorkflowStepStatus;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface DemoEngineRuntime {
+  currentIndex: number;
+  statuses: Record<DemoNodeId, DemoStatus>;
+  stepRuns: WorkflowStepRun[];
+  traceEvents: TraceEvent[];
+  visibleToolCalls: ToolCall[];
+  runCost: number;
+  runTokens: number;
+}
+
+export interface DemoTimelineAction {
+  at: number;
+  type: "step:start" | "trace:add" | "step:complete" | "run:complete";
+  stepId?: DemoNodeId;
+  traceEvent?: TraceEvent;
 }
