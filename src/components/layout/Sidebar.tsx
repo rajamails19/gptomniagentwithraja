@@ -54,6 +54,7 @@ export function Sidebar() {
             <Link
               key={item.to}
               to={item.to}
+              data-guide={`nav-${item.to === "/" ? "dashboard" : item.to.slice(1)}`}
               aria-current={active ? "page" : undefined}
               className={cn(
                 "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-[background,color,transform,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
@@ -78,6 +79,7 @@ export function Sidebar() {
 
         <Link
           to="/about"
+          data-guide="about-founder"
           aria-label="About Raja and NuvRajLabs"
           className="group mt-3 block rounded-2xl border border-[var(--electric)]/20 bg-white/[0.035] p-3 text-center transition duration-200 hover:-translate-y-0.5 hover:border-[var(--electric)]/45 hover:bg-white/[0.055] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]/60"
         >

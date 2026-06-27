@@ -145,6 +145,7 @@ function WorkflowPage() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button
+              data-guide="workflow-run"
               onClick={() => {
                 startWorkflowAnimation();
                 demo.start();
@@ -204,6 +205,7 @@ function WorkflowPage() {
             </StatBadge>
           </div>
           <div
+            data-guide="workflow-canvas"
             className="relative grid-bg w-full"
             style={{ aspectRatio: "1200 / 520", minHeight: 320 }}
           >

@@ -240,6 +240,7 @@ function Dashboard() {
               ) : (
                 <Button
                   onClick={demo.start}
+                  data-guide="dashboard-run"
                   className="h-10 px-5 bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0"
                 >
                   <Play className="h-4 w-4 mr-1.5" /> Run Demo Workflow

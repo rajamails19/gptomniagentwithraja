@@ -9,12 +9,14 @@ import {
   CheckCircle2,
   FileText,
   ShieldCheck,
+  Route,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useDemo } from "@/lib/demo-context";
 import { openPresentation } from "@/lib/presentation-store";
+import { openVisualGuide } from "@/lib/visual-guide-store";
 
 const envs = ["Dev", "Stage", "Prod"] as const;
 
@@ -97,6 +99,17 @@ export function Topbar() {
           aria-label="Open presentation mode"
         >
           <Presentation className="h-3.5 w-3.5" /> Presentation
+        </button>
+
+        <button
+          onClick={() => {
+            openVisualGuide();
+          }}
+          className="hidden lg:inline-flex h-9 px-3 items-center gap-1.5 rounded-lg border border-[var(--amber)]/25 bg-[var(--amber)]/10 text-xs font-semibold text-[var(--amber)] transition-[background,transform,border-color] duration-200 hover:-translate-y-px hover:border-[var(--amber)]/40 hover:bg-[var(--amber)]/15 active:translate-y-0 focus-visible:ring-2 focus-visible:ring-[var(--ring)]/55"
+          title="Visual Guide"
+          aria-label="Start visual guide"
+        >
+          <Route className="h-3.5 w-3.5" /> Visual Guide
         </button>
 
         <div className="relative">

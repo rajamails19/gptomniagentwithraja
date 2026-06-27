@@ -16,6 +16,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Toaster } from "@/components/ui/sonner";
 import { DemoProvider } from "@/lib/demo-context";
 import { PresentationMode } from "@/components/PresentationMode";
+import { VisualGuide } from "@/components/VisualGuide";
 
 function NotFoundComponent() {
   return (
@@ -145,6 +146,7 @@ function RootComponent() {
           </div>
         </div>
         <PresentationMode />
+        <VisualGuide />
         <Toaster theme="dark" />
       </DemoProvider>
     </QueryClientProvider>
