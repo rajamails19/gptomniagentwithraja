@@ -21,6 +21,18 @@ export class ToolRegistry {
     this.tools.set(tool.id, tool);
   }
 
+  unregister(id: string) {
+    this.tools.delete(id);
+  }
+
+  unregisterOrigin(type: "local" | "mcp", serverId?: string) {
+    Array.from(this.tools.values())
+      .filter(
+        (tool) => tool.origin?.type === type && (!serverId || tool.origin.serverId === serverId),
+      )
+      .forEach((tool) => this.tools.delete(tool.id));
+  }
+
   get(id: string) {
     const tool = this.tools.get(id);
     if (!tool) throw notFound("Tool not found");
@@ -28,11 +40,12 @@ export class ToolRegistry {
   }
 
   list(): ToolSummary[] {
-    return Array.from(this.tools.values()).map(({ id, name, description, category }) => ({
+    return Array.from(this.tools.values()).map(({ id, name, description, category, origin }) => ({
       id,
       name,
       description,
       category,
+      origin,
     }));
   }
 }

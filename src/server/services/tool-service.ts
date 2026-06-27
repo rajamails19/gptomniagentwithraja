@@ -1,13 +1,16 @@
+import { mcpServer } from "../mcp/MCPServer";
 import { toolExecutionRepository } from "../repositories/tool-execution-repository";
 import { toolExecutor } from "../tools/ToolExecutor";
 import { toolRegistry } from "../tools/ToolRegistry";
 
 export class ToolService {
-  listTools() {
+  async listTools() {
+    await mcpServer.initialize();
     return toolRegistry.list();
   }
 
-  getTool(id: string) {
+  async getTool(id: string) {
+    await mcpServer.initialize();
     const tool = toolRegistry.get(id);
     return {
       id: tool.id,
@@ -16,10 +19,11 @@ export class ToolService {
       category: tool.category,
       inputSchema: tool.inputSchema.describe(tool.name)._def.typeName,
       outputSchema: tool.outputSchema.describe(tool.name)._def.typeName,
+      origin: tool.origin ?? { type: "local" },
     };
   }
 
-  executeTool(
+  async executeTool(
     id: string,
     input: unknown,
     context: {
@@ -27,6 +31,7 @@ export class ToolService {
       traceEventId?: string;
     } = {},
   ) {
+    await mcpServer.initialize();
     return toolExecutor.execute(id, input, context);
   }
 

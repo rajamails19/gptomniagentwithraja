@@ -48,7 +48,13 @@ import {
 import { agents, dashboardSeries, modelBreakdown, recentExecutions } from "@/lib/mock-data";
 import { useDemo } from "@/lib/demo-context";
 import { Button } from "@/components/ui/button";
-import { getHealth, getScenarios, type ApiHealth } from "@/lib/api/client";
+import {
+  getHealth,
+  getMcpOverview,
+  getScenarios,
+  type ApiHealth,
+  type ApiMCPOverview,
+} from "@/lib/api/client";
 import { getAgentScores } from "@/lib/demo/intelligence";
 import type { ApiScenario } from "@/lib/api/schemas";
 
@@ -73,6 +79,7 @@ function Dashboard() {
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [apiHealth, setApiHealth] = useState<ApiHealth | null>(null);
   const [apiScenarios, setApiScenarios] = useState<ApiScenario[] | null>(null);
+  const [mcpOverview, setMcpOverview] = useState<ApiMCPOverview | null>(null);
   const prevCompletedId = useRef<string | null>(null);
 
   // When a new run finishes, scroll to the table and pulse the new row for 2s.
@@ -94,16 +101,18 @@ function Dashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getHealth(), getScenarios()])
-      .then(([health, scenarios]) => {
+    Promise.all([getHealth(), getScenarios(), getMcpOverview().catch(() => null)])
+      .then(([health, scenarios, mcp]) => {
         if (cancelled) return;
         setApiHealth(health);
         setApiScenarios(scenarios);
+        setMcpOverview(mcp);
       })
       .catch(() => {
         if (cancelled) return;
         setApiHealth(null);
         setApiScenarios(null);
+        setMcpOverview(null);
       });
     return () => {
       cancelled = true;
@@ -356,6 +365,41 @@ function Dashboard() {
           </div>
         )}
       </div>
+
+      <Panel>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="text-sm font-semibold">MCP connectivity</div>
+            <div className="text-xs text-muted-foreground">
+              MCP tools are discovered server-side and merged into the same tool registry as local
+              tools.
+            </div>
+          </div>
+          <StatBadge tone={mcpOverview?.connectedServers ? "success" : "warn"}>
+            {mcpOverview?.connectedServers ?? 0} connected servers
+          </StatBadge>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/60 bg-white/[0.03] p-3">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Health
+            </div>
+            <div className="mt-1 text-sm font-semibold">{mcpOverview?.status ?? "checking"}</div>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-white/[0.03] p-3">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              MCP tools
+            </div>
+            <div className="mt-1 text-sm font-semibold">{mcpOverview?.availableTools ?? 0}</div>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-white/[0.03] p-3">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Recent calls
+            </div>
+            <div className="mt-1 text-sm font-semibold">{mcpOverview?.recentCalls.length ?? 0}</div>
+          </div>
+        </div>
+      </Panel>
 
       {/* KPI grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4">

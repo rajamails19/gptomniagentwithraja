@@ -11,6 +11,7 @@ export abstract class BaseTool<
   abstract category: ToolCategory;
   abstract inputSchema: TInputSchema;
   abstract outputSchema: TOutputSchema;
+  origin = { type: "local" as const };
 
   execute(
     input: unknown,

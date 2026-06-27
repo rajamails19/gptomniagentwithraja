@@ -51,6 +51,52 @@ export type ApiToolSummary = {
   name: string;
   description: string;
   category: string;
+  origin?: {
+    type: "local" | "mcp";
+    serverId?: string;
+  };
+};
+
+export type ApiMCPServer = {
+  id: string;
+  name: string;
+  description: string;
+  transport: string;
+  status: "connected" | "disconnected" | "error";
+  health: "healthy" | "offline" | "degraded";
+  toolCount: number;
+  lastConnectedAt: string | null;
+  error?: string;
+};
+
+export type ApiMCPTool = {
+  id: string;
+  name: string;
+  description: string;
+  originServer: string;
+  inputSchema: string;
+  outputSchema: string;
+};
+
+export type ApiMCPCall = {
+  id: string;
+  serverId: string;
+  toolId: string;
+  requestSummary: string;
+  responseSummary: string;
+  status: "success" | "error";
+  latencyMs: number;
+  error: string | null;
+  createdAt: string;
+};
+
+export type ApiMCPOverview = {
+  status: string;
+  connectedServers: number;
+  availableTools: number;
+  servers: ApiMCPServer[];
+  tools: ApiMCPTool[];
+  recentCalls: ApiMCPCall[];
 };
 
 export type ApiToolExecution = {
@@ -265,4 +311,34 @@ export async function getRunAgents(runId: string) {
   return requestJson<{ runId: string; activeAgent: string | null; agents: unknown[] }>(
     `/api/v1/runs/${runId}/agents`,
   );
+}
+
+export async function getMcpOverview() {
+  return requestJson<ApiMCPOverview>("/api/v1/mcp");
+}
+
+export async function getMcpServers() {
+  const data = await requestJson<{ servers: ApiMCPServer[] }>("/api/v1/mcp/servers");
+  return data.servers;
+}
+
+export async function getMcpTools() {
+  const data = await requestJson<{ tools: ApiMCPTool[] }>("/api/v1/mcp/tools");
+  return data.tools;
+}
+
+export async function connectMcpServer(serverId: string) {
+  const data = await requestJson<{ server: ApiMCPServer }>("/api/v1/mcp/connect", {
+    method: "POST",
+    body: JSON.stringify({ serverId }),
+  });
+  return data.server;
+}
+
+export async function disconnectMcpServer(serverId: string) {
+  const data = await requestJson<{ server: ApiMCPServer }>("/api/v1/mcp/disconnect", {
+    method: "POST",
+    body: JSON.stringify({ serverId }),
+  });
+  return data.server;
 }

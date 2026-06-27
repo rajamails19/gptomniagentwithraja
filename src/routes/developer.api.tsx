@@ -8,10 +8,12 @@ import {
   getApiRoutes,
   getExecutionLogs,
   getHealth,
+  getMcpOverview,
   getRuns,
   getToolExecutions,
   getTools,
   type ApiHealth,
+  type ApiMCPOverview,
   type ApiRequestLog,
   type ApiToolExecution,
   type ApiToolSummary,
@@ -45,6 +47,7 @@ function DeveloperApiPage() {
   const [executionLogs, setExecutionLogs] = useState<unknown[]>([]);
   const [tools, setTools] = useState<ApiToolSummary[]>([]);
   const [toolExecutions, setToolExecutions] = useState<ApiToolExecution[]>([]);
+  const [mcpOverview, setMcpOverview] = useState<ApiMCPOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -60,6 +63,7 @@ function DeveloperApiPage() {
           nextExecutionLogs,
           nextTools,
           nextToolExecutions,
+          nextMcpOverview,
         ] = await Promise.all([
           getHealth(),
           getApiRoutes(),
@@ -68,6 +72,7 @@ function DeveloperApiPage() {
           getExecutionLogs(),
           getTools(),
           getToolExecutions(),
+          getMcpOverview(),
         ]);
         if (!active) return;
         setHealth(nextHealth);
@@ -77,6 +82,7 @@ function DeveloperApiPage() {
         setExecutionLogs(nextExecutionLogs);
         setTools(nextTools);
         setToolExecutions(nextToolExecutions);
+        setMcpOverview(nextMcpOverview);
         setError(null);
       } catch (apiError) {
         if (!active) return;
@@ -240,6 +246,55 @@ function DeveloperApiPage() {
           </div>
           <pre className="mt-4 max-h-[420px] overflow-auto rounded-lg border border-border/60 bg-black/20 p-3 text-[11px] text-muted-foreground">
             {JSON.stringify(sampleResponse, null, 2)}
+          </pre>
+        </Panel>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <Panel>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Server className="h-4 w-4 text-[var(--cyan)]" />
+            MCP servers
+          </div>
+          <div className="mt-4 space-y-2">
+            {(mcpOverview?.servers ?? []).map((server) => (
+              <div
+                key={server.id}
+                className="rounded-lg border border-border/60 bg-white/[0.03] p-3 text-xs"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-mono text-foreground">{server.id}</span>
+                  <StatusBadge
+                    status={server.status === "connected" ? "success" : "waiting"}
+                    label={server.status}
+                  />
+                </div>
+                <div className="mt-1 font-medium">{server.name}</div>
+                <div className="mt-1 text-muted-foreground">
+                  {server.toolCount} tools · {server.transport}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <ClipboardList className="h-4 w-4 text-[var(--emerald)]" />
+            MCP discovered tools
+          </div>
+          <pre className="mt-4 max-h-[360px] overflow-auto rounded-lg border border-border/60 bg-black/20 p-3 text-[11px] text-muted-foreground">
+            {JSON.stringify(mcpOverview?.tools ?? [], null, 2)}
+          </pre>
+        </Panel>
+
+        <Panel>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Activity className="h-4 w-4 text-[var(--amber)]" />
+            Recent MCP calls
+          </div>
+          <pre className="mt-4 max-h-[360px] overflow-auto rounded-lg border border-border/60 bg-black/20 p-3 text-[11px] text-muted-foreground">
+            {JSON.stringify(mcpOverview?.recentCalls ?? [], null, 2)}
           </pre>
         </Panel>
       </div>

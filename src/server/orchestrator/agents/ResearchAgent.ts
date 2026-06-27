@@ -6,43 +6,60 @@ export class ResearchAgent implements AgentDefinition {
   name = "Research Agent";
   role = "Collects structured source evidence and API surface details.";
   systemPrompt = ResearchPrompt.system;
-  allowedTools = ["openapi-inspector"];
+  allowedTools = ["openapi-inspector", "mcp.filesystem.openapi-catalog"];
   allowedModels = ["gpt-5-mini", "gpt-5"];
 
   async execute(context: AgentExecutionContext) {
     const started = performance.now();
-    const tool = await context.runTool(
-      "openapi-inspector",
+    let endpoints = [
       {
-        endpoints: [
-          {
-            method: "POST",
-            path: "/payments/intents",
-            summary: "Create a PaymentIntent",
-            auth: "Bearer token required",
-          },
-          {
-            method: "GET",
-            path: "/payments/intents/:id",
-            summary: "Retrieve a PaymentIntent",
-            auth: "Bearer token required",
-          },
-          {
-            method: "POST",
-            path: "/payments/refunds",
-            summary: "Refund a captured charge",
-            auth: "Bearer token required",
-          },
-          {
-            method: "POST",
-            path: "/payments/disputes/:id/evidence",
-            summary: "Submit dispute evidence",
-            auth: "Bearer token required",
-          },
-        ],
+        method: "POST",
+        path: "/payments/intents",
+        summary: "Create a PaymentIntent",
+        auth: "Bearer token required",
       },
-      "tool_research",
-    );
+      {
+        method: "GET",
+        path: "/payments/intents/:id",
+        summary: "Retrieve a PaymentIntent",
+        auth: "Bearer token required",
+      },
+      {
+        method: "POST",
+        path: "/payments/refunds",
+        summary: "Refund a captured charge",
+        auth: "Bearer token required",
+      },
+      {
+        method: "POST",
+        path: "/payments/disputes/:id/evidence",
+        summary: "Submit dispute evidence",
+        auth: "Bearer token required",
+      },
+    ];
+
+    try {
+      const mcpCatalog = await context.runTool(
+        "mcp.filesystem.openapi-catalog",
+        { service: "payments" },
+        "mcp_catalog_research",
+      );
+      if (
+        typeof mcpCatalog.output === "object" &&
+        mcpCatalog.output &&
+        "endpoints" in mcpCatalog.output &&
+        Array.isArray(mcpCatalog.output.endpoints)
+      ) {
+        endpoints = mcpCatalog.output.endpoints.map((endpoint) => ({
+          ...endpoint,
+          auth: "Bearer token required",
+        }));
+      }
+    } catch {
+      // Local inspector fallback keeps orchestration deterministic when MCP is disconnected.
+    }
+
+    const tool = await context.runTool("openapi-inspector", { endpoints }, "tool_research");
 
     return {
       agentId: this.id,
@@ -57,7 +74,8 @@ export class ResearchAgent implements AgentDefinition {
           stepId: "research",
           ts: "00:02:00",
           agent: this.name,
-          message: "Research called openapi-inspector with scoped endpoint evidence.",
+          message:
+            "Research discovered API evidence through MCP when available, then called openapi-inspector.",
           tone: "info",
           type: "tool_call",
           latencyMs: tool.durationMs,
