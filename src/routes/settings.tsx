@@ -19,10 +19,10 @@ function SettingsPage() {
         <Panel>
           <div className="text-sm font-semibold mb-3">Workspace</div>
           {[
-            { k: "Workspace name", v: "Seekra Labs · Demo" },
+            { k: "Workspace name", v: "NuvRajLabs · OmniAgents Demo" },
             { k: "Default environment", v: "Dev" },
             { k: "Region", v: "us-east-1" },
-            { k: "Owner", v: "raja@seekralabs.com" },
+            { k: "Owner", v: "raja@nuvrajlabs.com" },
           ].map((f) => (
             <div
               key={f.k}

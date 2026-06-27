@@ -167,11 +167,11 @@ export function Topbar() {
 
         <div className="h-9 pl-1 pr-3 hidden sm:flex items-center gap-2 rounded-lg glass">
           <div className="h-7 w-7 rounded-md bg-gradient-to-br from-[var(--violet)] to-[var(--electric)] grid place-items-center text-[11px] font-semibold text-white">
-            AK
+            RA
           </div>
           <div className="hidden md:block leading-tight">
             <div className="text-xs font-medium">Raja</div>
-            <div className="text-[10px] text-muted-foreground">Builder · Seekra Labs</div>
+            <div className="text-[10px] text-muted-foreground">Founder · NuvRajLabs</div>
           </div>
         </div>
       </div>

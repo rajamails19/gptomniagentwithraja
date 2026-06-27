@@ -41,7 +41,7 @@ export function Sidebar() {
         <div className="leading-tight">
           <div className="text-sm font-semibold tracking-tight">OmniAgents</div>
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            Control Room
+            NuvRajLabs
           </div>
         </div>
       </div>
@@ -75,9 +75,38 @@ export function Sidebar() {
             </Link>
           );
         })}
+
+        <Link
+          to="/about"
+          aria-label="About Raja and NuvRajLabs"
+          className="group mt-3 block rounded-2xl border border-[var(--electric)]/20 bg-white/[0.035] p-3 text-center transition duration-200 hover:-translate-y-0.5 hover:border-[var(--electric)]/45 hover:bg-white/[0.055] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]/60"
+        >
+          <div className="mx-auto h-20 w-20 overflow-hidden rounded-full border-2 border-[var(--electric)] shadow-[0_0_30px_oklch(0.72_0.2_250/0.28)]">
+            <img
+              src="/Raja.jpg"
+              alt="Raja"
+              className="h-full w-full object-cover object-[50%_10%]"
+            />
+          </div>
+          <div className="mt-2 text-sm font-semibold leading-tight text-foreground">Raja</div>
+          <div className="mt-1 space-y-0.5 leading-tight">
+            <div className="text-[12px] font-semibold text-[var(--cyan)]">
+              Founder &amp; Visionary
+            </div>
+            <div className="text-[12px] font-semibold italic text-[var(--amber)]">
+              AI Agent Builder
+            </div>
+          </div>
+          <div className="mt-2 font-mono text-[13px] font-semibold uppercase tracking-[0.2em] text-[var(--electric)] drop-shadow-[0_0_12px_oklch(0.72_0.2_250/0.45)]">
+            @NUVRAJLABS
+          </div>
+          <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+            Building enterprise agent control-room demos.
+          </p>
+        </Link>
       </nav>
 
-      <div className="m-3 rounded-xl glass p-3">
+      <div className="mx-3 mb-3 rounded-xl glass p-3">
         <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">System</div>
         <div className="mt-1 flex items-center gap-2 text-xs">
           <span className="relative flex h-2 w-2">
@@ -87,7 +116,7 @@ export function Sidebar() {
           All systems operational
         </div>
         <div className="mt-2 text-[11px] text-muted-foreground">
-          12 agents · 4 models · 11 tools
+          Founder-built · 12 agents · 11 tools
         </div>
       </div>
     </aside>

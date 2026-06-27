@@ -80,14 +80,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "OmniAgents — AI Agent Control Room" },
+      { title: "OmniAgents by NuvRajLabs — AI Agent Control Room" },
       {
         name: "description",
         content:
           "AI agent control room for planning, execution, debugging, monitoring, and governance.",
       },
-      { name: "author", content: "OmniAgents" },
-      { property: "og:title", content: "OmniAgents — AI Agent Control Room" },
+      { name: "author", content: "Raja · NuvRajLabs" },
+      { property: "og:title", content: "OmniAgents by NuvRajLabs — AI Agent Control Room" },
       {
         property: "og:description",
         content:
@@ -95,7 +95,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "OmniAgents — AI Agent Control Room" },
+      { name: "twitter:title", content: "OmniAgents by NuvRajLabs — AI Agent Control Room" },
       {
         name: "twitter:description",
         content:
@@ -140,7 +140,7 @@ function RootComponent() {
               <Outlet />
             </main>
             <footer className="h-10 shrink-0 bg-black/70 border-t border-border/60 px-4 lg:px-6 flex items-center justify-end text-[11px] text-muted-foreground">
-              © 2026 OmniAgents · Built by Raja · Seekra Labs
+              © 2026 OmniAgents · Built by Raja · NuvRajLabs
             </footer>
           </div>
         </div>
