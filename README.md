@@ -77,9 +77,19 @@ Execution lifecycle:
 - The final artifact is persisted when the run reaches `completed`.
 - The current frontend calls the backend first and falls back to the local deterministic demo engine if the API is unavailable.
 
+LLM provider configuration:
+
+- Active provider: `LLM_PROVIDER` defaults to `openai`
+- Active model: `LLM_MODEL` or `OPENAI_MODEL`, defaulting to `gpt-5-mini`
+- OpenAI key: `OPENAI_API_KEY`
+- Timeout: `LLM_TIMEOUT_MS`, defaulting to `20000`
+
+All LLM access goes through `src/server/llm/`. The frontend never calls provider APIs directly. The API Documentation Generation workflow attempts a real LLM artifact generation at completion; if the provider is missing or unavailable, it falls back to the deterministic demo artifact and records the fallback in execution logs.
+
 Available endpoints:
 
 - `GET /api/v1/health`
+- `POST /api/v1/llm/test`
 - `GET /api/v1/scenarios`
 - `GET /api/v1/scenarios/:id`
 - `GET /api/v1/runs`
@@ -104,6 +114,9 @@ Local API testing:
 npm run dev
 
 curl http://localhost:8087/api/v1/health
+curl -X POST http://localhost:8087/api/v1/llm/test \
+  -H "content-type: application/json" \
+  -d '{"prompt":"Write one sentence about API documentation."}'
 curl http://localhost:8087/api/v1/scenarios
 curl http://localhost:8087/api/v1/scenarios/security-incident
 curl http://localhost:8087/api/v1/runs

@@ -1,5 +1,8 @@
 import type { ApiRun, ApiRunStatus } from "@/lib/api/schemas";
+import { DEFAULT_SCENARIO_ID } from "@/lib/demo/seed-data";
 import type { DemoNodeId, DemoScenario } from "@/lib/demo/types";
+import { llmService } from "../llm/LLMService";
+import { DeveloperPrompt } from "../llm/prompts/templates";
 import { createTrace } from "../models/mappers";
 import { artifactRepository } from "../repositories/artifact-repository";
 import { runRepository } from "../repositories/run-repository";
@@ -27,7 +30,7 @@ export class WorkflowExecutionService {
     return run;
   }
 
-  startRun(runId: string): ApiRunStatus {
+  async startRun(runId: string): Promise<ApiRunStatus> {
     const run = runRepository.findById(runId);
     if (!run) throw notFound("Run not found");
     if (run.status === "completed") throw badRequest("Completed runs must be replayed.");
@@ -55,7 +58,7 @@ export class WorkflowExecutionService {
     return this.getRunStatus(runId);
   }
 
-  cancelRun(runId: string): ApiRunStatus {
+  async cancelRun(runId: string): Promise<ApiRunStatus> {
     const run = runRepository.findById(runId);
     if (!run) throw notFound("Run not found");
 
@@ -69,7 +72,7 @@ export class WorkflowExecutionService {
     return this.getRunStatus(runId);
   }
 
-  replayRun(runId: string): ApiRunStatus {
+  async replayRun(runId: string): Promise<ApiRunStatus> {
     const run = runRepository.findById(runId);
     if (!run) throw notFound("Run not found");
     const replay = this.createRun({ scenarioId: run.scenarioId });
@@ -82,8 +85,8 @@ export class WorkflowExecutionService {
     return this.startRun(replay.id);
   }
 
-  getRunStatus(runId: string): ApiRunStatus {
-    this.advanceRun(runId);
+  async getRunStatus(runId: string): Promise<ApiRunStatus> {
+    await this.advanceRun(runId);
 
     const run = runRepository.findById(runId);
     if (!run) throw notFound("Run not found");
@@ -102,7 +105,7 @@ export class WorkflowExecutionService {
     return getExecutionLogs();
   }
 
-  private advanceRun(runId: string) {
+  private async advanceRun(runId: string) {
     const run = runRepository.findById(runId);
     if (!run) throw notFound("Run not found");
     if (run.status !== "running") return;
@@ -116,7 +119,7 @@ export class WorkflowExecutionService {
     const totalDuration = scenario.steps.length * STEP_DURATION_MS;
 
     if (elapsed >= totalDuration) {
-      this.completeRun(run, scenario);
+      await this.completeRun(run, scenario);
       return;
     }
 
@@ -169,7 +172,7 @@ export class WorkflowExecutionService {
     });
   }
 
-  private completeRun(run: ApiRun, scenario: DemoScenario) {
+  private async completeRun(run: ApiRun, scenario: DemoScenario) {
     const now = new Date().toISOString();
     scenario.steps.forEach((step) => {
       runRepository.updateStep(run.id, step.id, {
@@ -180,9 +183,11 @@ export class WorkflowExecutionService {
     });
 
     traceRepository.replaceForRun(run.id, createTrace(scenario, run.id));
+    const artifactMarkdown = await this.generateFinalArtifact(run, scenario);
     artifactRepository.upsertForRun({
       ...scenario.finalArtifact,
       runId: run.id,
+      markdown: artifactMarkdown,
     });
 
     runRepository.updateLifecycle(run.id, {
@@ -209,6 +214,46 @@ export class WorkflowExecutionService {
       status: "completed",
       details: { artifact: scenario.finalArtifact.filename },
     });
+  }
+
+  private async generateFinalArtifact(run: ApiRun, scenario: DemoScenario) {
+    if (scenario.id !== DEFAULT_SCENARIO_ID) return scenario.finalArtifact.markdown;
+
+    try {
+      const result = await llmService.generate({
+        system: DeveloperPrompt.system,
+        prompt: DeveloperPrompt.user(scenario),
+        executionId: run.id,
+        metadata: {
+          scenarioId: scenario.id,
+          workflow: scenario.title,
+        },
+      });
+
+      recordExecutionLog({
+        runId: run.id,
+        event: "llm.artifact.generated",
+        status: "completed",
+        details: {
+          provider: result.provider,
+          model: result.model,
+          latencyMs: result.latencyMs,
+          totalTokens: result.usage?.totalTokens,
+        },
+      });
+
+      return result.text.trim() || scenario.finalArtifact.markdown;
+    } catch (error) {
+      recordExecutionLog({
+        runId: run.id,
+        event: "llm.artifact.fallback",
+        status: "completed",
+        details: {
+          reason: error instanceof Error ? error.message : "LLM unavailable",
+        },
+      });
+      return scenario.finalArtifact.markdown;
+    }
   }
 
   private getScenarioForRun(run: ApiRun): DemoScenario {

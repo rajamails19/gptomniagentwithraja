@@ -108,6 +108,25 @@ export function runMigrations() {
       value_json text not null,
       updated_at text not null
     );
+
+    create table if not exists llm_logs (
+      id text primary key,
+      execution_id text,
+      provider text not null,
+      model text not null,
+      prompt text not null,
+      response text not null,
+      latency_ms integer not null,
+      input_tokens integer,
+      output_tokens integer,
+      total_tokens integer,
+      status text not null check (status in ('success', 'error')),
+      error_message text,
+      created_at text not null
+    );
+
+    create index if not exists idx_llm_logs_execution_created
+      on llm_logs (execution_id, created_at);
   `);
 
   migrated = true;

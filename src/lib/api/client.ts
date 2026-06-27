@@ -18,6 +18,14 @@ export type ApiHealth = {
       runs: number;
     };
   };
+  llm?: {
+    provider: string;
+    model: string;
+    configured: boolean;
+    reachable: boolean;
+    status: string;
+    message: string;
+  };
   timestamp: string;
 };
 
@@ -155,4 +163,26 @@ export async function getApiLogs() {
 export async function getExecutionLogs() {
   const data = await requestJson<{ logs: unknown[] }>("/api/v1/developer/execution-logs");
   return data.logs;
+}
+
+export async function testLlm(prompt: string, options?: { model?: string; temperature?: number }) {
+  const data = await requestJson<{
+    response: string;
+    latencyMs: number;
+    usage?: {
+      inputTokens?: number;
+      outputTokens?: number;
+      totalTokens?: number;
+    };
+    provider: string;
+    model: string;
+  }>("/api/v1/llm/test", {
+    method: "POST",
+    body: JSON.stringify({
+      prompt,
+      model: options?.model,
+      temperature: options?.temperature,
+    }),
+  });
+  return data;
 }

@@ -10,12 +10,15 @@ import { settingsService } from "../services/settings-service";
 import { toolService } from "../services/tool-service";
 import { traceService } from "../services/trace-service";
 import { workflowExecutionService } from "../services/workflow-execution-service";
+import { llmService } from "../llm/LLMService";
 import { json, parseJsonBody, validateParams } from "../utils/http";
 import {
   artifactResponseSchema,
   createRunRequestSchema,
   healthResponseSchema,
   idParamSchema,
+  llmTestRequestSchema,
+  llmTestResponseSchema,
   runResponseSchema,
   runStatusResponseSchema,
   runsResponseSchema,
@@ -59,8 +62,30 @@ export const apiRoutes: ApiRoute[] = [
     method: "GET",
     path: "/api/v1/health",
     summary: "API status, storage mode, scenario count, and run count.",
-    handler: ({ requestId }) => {
-      const data = healthResponseSchema.parse(healthService.getHealth());
+    handler: async ({ requestId }) => {
+      const data = healthResponseSchema.parse(await healthService.getHealth());
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/v1/llm/test",
+    summary: "Generate a provider-neutral test response through the active LLM provider.",
+    handler: async ({ request, requestId }) => {
+      const payload = await parseJsonBody(request, llmTestRequestSchema);
+      const result = await llmService.generate({
+        prompt: payload.prompt,
+        model: payload.model,
+        temperature: payload.temperature,
+        executionId: "llm-test",
+      });
+      const data = llmTestResponseSchema.parse({
+        response: result.text,
+        latencyMs: result.latencyMs,
+        usage: result.usage,
+        provider: result.provider,
+        model: result.model,
+      });
       return json(data, requestId);
     },
   },
@@ -110,9 +135,9 @@ export const apiRoutes: ApiRoute[] = [
     method: "POST",
     path: "/api/v1/runs/:id/start",
     summary: "Start deterministic backend execution for a queued run.",
-    handler: ({ params, requestId }) => {
+    handler: async ({ params, requestId }) => {
       const { id } = validateParams(params, idParamSchema);
-      const data = runStatusResponseSchema.parse(workflowExecutionService.startRun(id));
+      const data = runStatusResponseSchema.parse(await workflowExecutionService.startRun(id));
       return json(data, requestId);
     },
   },
@@ -120,9 +145,9 @@ export const apiRoutes: ApiRoute[] = [
     method: "POST",
     path: "/api/v1/runs/:id/cancel",
     summary: "Cancel a queued or running workflow run.",
-    handler: ({ params, requestId }) => {
+    handler: async ({ params, requestId }) => {
       const { id } = validateParams(params, idParamSchema);
-      const data = runStatusResponseSchema.parse(workflowExecutionService.cancelRun(id));
+      const data = runStatusResponseSchema.parse(await workflowExecutionService.cancelRun(id));
       return json(data, requestId);
     },
   },
@@ -130,9 +155,9 @@ export const apiRoutes: ApiRoute[] = [
     method: "POST",
     path: "/api/v1/runs/:id/replay",
     summary: "Create and start a new deterministic replay from an existing run.",
-    handler: ({ params, requestId }) => {
+    handler: async ({ params, requestId }) => {
       const { id } = validateParams(params, idParamSchema);
-      const data = runStatusResponseSchema.parse(workflowExecutionService.replayRun(id));
+      const data = runStatusResponseSchema.parse(await workflowExecutionService.replayRun(id));
       return json(data, requestId, 201);
     },
   },
@@ -140,9 +165,9 @@ export const apiRoutes: ApiRoute[] = [
     method: "GET",
     path: "/api/v1/runs/:id/status",
     summary: "Poll persisted lifecycle, step, trace, and artifact readiness for a run.",
-    handler: ({ params, requestId }) => {
+    handler: async ({ params, requestId }) => {
       const { id } = validateParams(params, idParamSchema);
-      const data = runStatusResponseSchema.parse(workflowExecutionService.getRunStatus(id));
+      const data = runStatusResponseSchema.parse(await workflowExecutionService.getRunStatus(id));
       return json(data, requestId);
     },
   },
@@ -160,9 +185,9 @@ export const apiRoutes: ApiRoute[] = [
     method: "GET",
     path: "/api/v1/runs/:id/trace",
     summary: "Get trace events for a workflow run.",
-    handler: ({ params, requestId }) => {
+    handler: async ({ params, requestId }) => {
       const { id } = validateParams(params, idParamSchema);
-      workflowExecutionService.getRunStatus(id);
+      await workflowExecutionService.getRunStatus(id);
       const data = traceResponseSchema.parse({ trace: traceService.getTraceForRun(id) });
       return json(data, requestId);
     },
@@ -171,9 +196,9 @@ export const apiRoutes: ApiRoute[] = [
     method: "GET",
     path: "/api/v1/runs/:id/artifact",
     summary: "Get final artifact for a workflow run.",
-    handler: ({ params, requestId }) => {
+    handler: async ({ params, requestId }) => {
       const { id } = validateParams(params, idParamSchema);
-      workflowExecutionService.getRunStatus(id);
+      await workflowExecutionService.getRunStatus(id);
       const data = artifactResponseSchema.parse({
         artifact: artifactService.getArtifactForRun(id),
       });

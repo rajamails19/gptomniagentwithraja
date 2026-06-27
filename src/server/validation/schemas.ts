@@ -41,7 +41,35 @@ export const healthResponseSchema = z.object({
       runs: z.number(),
     }),
   }),
+  llm: z.object({
+    provider: z.string(),
+    model: z.string(),
+    configured: z.boolean(),
+    reachable: z.boolean(),
+    status: z.string(),
+    message: z.string(),
+  }),
   timestamp: z.string(),
+});
+
+export const llmTestRequestSchema = z.object({
+  prompt: z.string().min(1).max(20_000),
+  model: z.string().min(1).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+});
+
+export const llmTestResponseSchema = z.object({
+  response: z.string(),
+  latencyMs: z.number(),
+  usage: z
+    .object({
+      inputTokens: z.number().optional(),
+      outputTokens: z.number().optional(),
+      totalTokens: z.number().optional(),
+    })
+    .optional(),
+  provider: z.string(),
+  model: z.string(),
 });
 
 export const scenariosResponseSchema = z.object({

@@ -1,11 +1,14 @@
 import { DEMO_SCENARIOS } from "@/lib/demo/seed-data";
 import { getDatabaseStatus, initializeDatabase } from "../db";
+import { llmService } from "../llm/LLMService";
 import { runRepository } from "../repositories/run-repository";
 
 export class HealthService {
-  getHealth() {
+  async getHealth() {
     initializeDatabase();
     const database = getDatabaseStatus();
+    const llmHealth = await llmService.health();
+    const llmConfig = llmService.getConfiguration();
     return {
       ok: true,
       service: "GPT Omni Agents API",
@@ -14,6 +17,14 @@ export class HealthService {
       scenarioCount: DEMO_SCENARIOS.length,
       runCount: runRepository.count(),
       database,
+      llm: {
+        provider: llmHealth.provider,
+        model: llmConfig.model,
+        configured: llmHealth.configured,
+        reachable: llmHealth.reachable,
+        status: llmHealth.status,
+        message: llmHealth.message,
+      },
       timestamp: new Date().toISOString(),
     };
   }

@@ -26,6 +26,10 @@ export function methodNotAllowed(message = "Method not allowed") {
   return new ApiError(405, "METHOD_NOT_ALLOWED", message);
 }
 
+export function providerUnavailable(message = "LLM provider unavailable", details?: unknown) {
+  return new ApiError(503, "PROVIDER_UNAVAILABLE", message, details);
+}
+
 export function routeNotFound() {
   return new ApiError(404, "ROUTE_NOT_FOUND", "API route not found");
 }

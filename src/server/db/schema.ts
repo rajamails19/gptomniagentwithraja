@@ -98,6 +98,22 @@ export const settingsTable = sqliteTable("settings", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const llmLogsTable = sqliteTable("llm_logs", {
+  id: text("id").primaryKey(),
+  executionId: text("execution_id"),
+  provider: text("provider").notNull(),
+  model: text("model").notNull(),
+  prompt: text("prompt").notNull(),
+  response: text("response").notNull(),
+  latencyMs: integer("latency_ms").notNull(),
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  totalTokens: integer("total_tokens"),
+  status: text("status", { enum: ["success", "error"] }).notNull(),
+  errorMessage: text("error_message"),
+  createdAt: text("created_at").notNull(),
+});
+
 export type RunRow = typeof runsTable.$inferSelect;
 export type WorkflowStepRow = typeof workflowStepsTable.$inferSelect;
 export type TraceEventRow = typeof traceEventsTable.$inferSelect;
