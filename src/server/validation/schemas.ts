@@ -1,22 +1,32 @@
 import { z } from "zod";
 import {
   costSummarySchema,
+  approvalDecisionRequestSchema,
+  approvalRequestSchema,
   createRunRequestSchema,
+  createMemoryRequestSchema,
   finalArtifactSchema,
+  memorySchema,
   runSchema,
   runStatusResponseSchema,
   scenarioSummarySchema,
   traceEventSchema,
+  updateMemoryRequestSchema,
 } from "@/lib/api/schemas";
 
 export {
   costSummarySchema,
+  approvalDecisionRequestSchema,
+  approvalRequestSchema,
   createRunRequestSchema,
+  createMemoryRequestSchema,
   finalArtifactSchema,
+  memorySchema,
   runSchema,
   runStatusResponseSchema,
   scenarioSummarySchema,
   traceEventSchema,
+  updateMemoryRequestSchema,
 };
 
 export const idParamSchema = z.object({
@@ -94,4 +104,20 @@ export const traceResponseSchema = z.object({
 
 export const artifactResponseSchema = z.object({
   artifact: finalArtifactSchema,
+});
+
+export const memoriesResponseSchema = z.object({
+  memories: z.array(memorySchema),
+});
+
+export const memoryResponseSchema = z.object({
+  memory: memorySchema,
+});
+
+export const approvalsResponseSchema = z.object({
+  approvals: z.array(approvalRequestSchema),
+});
+
+export const approvalResponseSchema = z.object({
+  approval: approvalRequestSchema,
 });

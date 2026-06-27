@@ -13,7 +13,15 @@ export const runsTable = sqliteTable("runs", {
   scenarioId: text("scenario_id").notNull(),
   workflow: text("workflow").notNull(),
   status: text("status", {
-    enum: ["queued", "running", "completed", "failed", "cancelled"],
+    enum: [
+      "queued",
+      "running",
+      "waiting_for_approval",
+      "completed",
+      "failed",
+      "cancelled",
+      "rejected",
+    ],
   }).notNull(),
   duration: text("duration").notNull(),
   tokens: integer("tokens").notNull(),
@@ -59,6 +67,7 @@ export const traceEventsTable = sqliteTable("trace_events", {
   latencyMs: integer("latency_ms"),
   cost: real("cost"),
   toolCallId: text("tool_call_id"),
+  memoryIdsJson: text("memory_ids_json"),
   createdAt: text("created_at").notNull(),
 });
 
@@ -146,7 +155,41 @@ export const agentHandoffsTable = sqliteTable("agent_handoffs", {
   createdAt: text("created_at").notNull(),
 });
 
+export const memoriesTable = sqliteTable("memories", {
+  id: text("id").primaryKey(),
+  scope: text("scope", { enum: ["run", "workflow", "global"] }).notNull(),
+  runId: text("run_id"),
+  scenarioId: text("scenario_id"),
+  agentId: text("agent_id"),
+  content: text("content").notNull(),
+  tagsJson: text("tags_json").notNull(),
+  importance: integer("importance").notNull(),
+  source: text("source").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const approvalRequestsTable = sqliteTable("approval_requests", {
+  id: text("id").primaryKey(),
+  runId: text("run_id").notNull(),
+  scenarioId: text("scenario_id").notNull(),
+  agentId: text("agent_id"),
+  stepId: text("step_id").notNull(),
+  status: text("status", {
+    enum: ["pending", "approved", "rejected", "expired", "skipped"],
+  }).notNull(),
+  reason: text("reason").notNull(),
+  riskLevel: text("risk_level", { enum: ["low", "medium", "high", "critical"] }).notNull(),
+  requestedAction: text("requested_action").notNull(),
+  artifactPreview: text("artifact_preview").notNull(),
+  reviewerNote: text("reviewer_note"),
+  createdAt: text("created_at").notNull(),
+  decidedAt: text("decided_at"),
+});
+
 export type RunRow = typeof runsTable.$inferSelect;
 export type WorkflowStepRow = typeof workflowStepsTable.$inferSelect;
 export type TraceEventRow = typeof traceEventsTable.$inferSelect;
 export type ArtifactRow = typeof artifactsTable.$inferSelect;
+export type MemoryRow = typeof memoriesTable.$inferSelect;
+export type ApprovalRequestRow = typeof approvalRequestsTable.$inferSelect;

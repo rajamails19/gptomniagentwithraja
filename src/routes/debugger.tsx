@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   EmptyState,
@@ -15,6 +15,8 @@ import { useDemo, type DemoNodeId } from "@/lib/demo-context";
 import { AlertTriangle, Download, FileText, RefreshCw, GitBranch } from "lucide-react";
 import { toast } from "sonner";
 import { getAgentScores, getDecisionCards, getMemoryUsage } from "@/lib/demo/intelligence";
+import { getMemories } from "@/lib/api/client";
+import type { ApiMemory } from "@/lib/api/schemas";
 
 export const Route = createFileRoute("/debugger")({
   head: () => ({
@@ -39,6 +41,7 @@ function DebuggerPage() {
     return [currentRun, ...completed, ...recentExecutions];
   }, [currentRun, demo.completedExecutions]);
   const [exec, setExec] = useState(currentRun.id);
+  const [backendMemories, setBackendMemories] = useState<ApiMemory[]>([]);
   // Keep selection in sync when a fresh demo run finishes.
   const effectiveExec = executions.some((e) => e.id === exec) ? exec : executions[0].id;
   const selected = executions.find((e) => e.id === effectiveExec)!;
@@ -54,6 +57,8 @@ function DebuggerPage() {
   const failed = step.status === "retried" || step.status === "failed";
   const scores = getAgentScores(step);
   const memoryUsage = getMemoryUsage(step);
+  const stepMemoryIds = [...new Set(stepTraceEvents.flatMap((event) => event.memoryIds ?? []))];
+  const stepMemories = backendMemories.filter((memory) => stepMemoryIds.includes(memory.id));
   const decisions = getDecisionCards(currentRun);
   const tracePayload = useMemo(
     () => ({
@@ -92,6 +97,20 @@ function DebuggerPage() {
   );
   const traceJson = useMemo(() => JSON.stringify(tracePayload, null, 2), [tracePayload]);
   const artifactSummary = `${currentRun.finalArtifact.title} (${currentRun.finalArtifact.filename}) · ${currentRun.finalArtifact.status} by ${currentRun.finalArtifact.approvedBy} · ${currentRun.finalArtifact.sizeLabel}. ${step.outputSummary}`;
+
+  useEffect(() => {
+    let active = true;
+    getMemories()
+      .then((memories) => {
+        if (active) setBackendMemories(memories);
+      })
+      .catch(() => {
+        if (active) setBackendMemories([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [currentRun.traceEvents.length]);
 
   return (
     <div className="space-y-6">
@@ -289,6 +308,30 @@ function DebuggerPage() {
                 <MemoryLine label="Updated" items={memoryUsage.updatedMemories} />
                 <MemoryLine label="Skipped" items={memoryUsage.skippedMemories} />
               </div>
+              {stepMemoryIds.length > 0 && (
+                <div className="mt-3 rounded-lg border border-[var(--cyan)]/20 bg-[var(--cyan)]/[0.06] p-2">
+                  <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--cyan)]">
+                    Backend memory IDs
+                  </div>
+                  <div className="mt-1 font-mono text-[10px] text-muted-foreground">
+                    {stepMemoryIds.join(", ")}
+                  </div>
+                </div>
+              )}
+              {stepMemories.length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  {stepMemories.slice(0, 3).map((memory) => (
+                    <div key={memory.id} className="rounded-lg bg-black/20 p-2">
+                      <div className="text-[11px] font-medium text-foreground">
+                        {memory.scope} · {memory.source}
+                      </div>
+                      <div className="mt-1 text-[11px] text-muted-foreground line-clamp-2">
+                        {memory.content}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -308,6 +351,11 @@ function DebuggerPage() {
                       <div className="mt-0.5 text-[11px] text-muted-foreground">
                         {event.agent} · {event.type}
                       </div>
+                      {(event.memoryIds?.length ?? 0) > 0 && (
+                        <div className="mt-1 font-mono text-[10px] text-[var(--cyan)]">
+                          memory: {event.memoryIds?.join(", ")}
+                        </div>
+                      )}
                     </div>
                     <div className="shrink-0 text-right text-[10px] text-muted-foreground tabular-nums">
                       <div>{event.latencyMs ? `${event.latencyMs}ms` : "queued"}</div>

@@ -20,7 +20,7 @@ export function runMigrations() {
       id text primary key,
       scenario_id text not null,
       workflow text not null,
-      status text not null check (status in ('queued', 'running', 'completed', 'failed', 'cancelled')),
+      status text not null check (status in ('queued', 'running', 'waiting_for_approval', 'completed', 'failed', 'cancelled', 'rejected')),
       duration text not null,
       tokens integer not null,
       cost real not null,
@@ -65,6 +65,7 @@ export function runMigrations() {
       latency_ms integer,
       cost real,
       tool_call_id text,
+      memory_ids_json text,
       created_at text not null,
       foreign key (run_id) references runs(id) on delete cascade
     );
@@ -167,9 +168,63 @@ export function runMigrations() {
 
     create index if not exists idx_agent_handoffs_run_sequence
       on agent_handoffs (run_id, sequence);
+
+    create table if not exists memories (
+      id text primary key,
+      scope text not null check (scope in ('run', 'workflow', 'global')),
+      run_id text,
+      scenario_id text,
+      agent_id text,
+      content text not null,
+      tags_json text not null,
+      importance integer not null,
+      source text not null,
+      created_at text not null,
+      updated_at text not null
+    );
+
+    create index if not exists idx_memories_scope_created
+      on memories (scope, created_at);
+
+    create index if not exists idx_memories_run
+      on memories (run_id);
+
+    create index if not exists idx_memories_scenario
+      on memories (scenario_id);
+
+    create table if not exists approval_requests (
+      id text primary key,
+      run_id text not null,
+      scenario_id text not null,
+      agent_id text,
+      step_id text not null,
+      status text not null check (status in ('pending', 'approved', 'rejected', 'expired', 'skipped')),
+      reason text not null,
+      risk_level text not null check (risk_level in ('low', 'medium', 'high', 'critical')),
+      requested_action text not null,
+      artifact_preview text not null,
+      reviewer_note text,
+      created_at text not null,
+      decided_at text,
+      foreign key (run_id) references runs(id) on delete cascade
+    );
+
+    create index if not exists idx_approval_requests_run_created
+      on approval_requests (run_id, created_at);
+
+    create index if not exists idx_approval_requests_status_created
+      on approval_requests (status, created_at);
   `);
 
+  addColumnIfMissing("trace_events", "memory_ids_json", "text");
+
   migrated = true;
+}
+
+function addColumnIfMissing(table: string, column: string, definition: string) {
+  const rows = sqlite.prepare(`pragma table_info(${table})`).all() as Array<{ name: string }>;
+  if (rows.some((row) => row.name === column)) return;
+  sqlite.exec(`alter table ${table} add column ${column} ${definition}`);
 }
 
 function migrateRunsTableIfNeeded() {
@@ -178,7 +233,14 @@ function migrateRunsTableIfNeeded() {
     .get() as { sql?: string } | undefined;
 
   if (!table?.sql) return;
-  if (table.sql.includes("'queued'") && table.sql.includes("started_at")) return;
+  if (
+    table.sql.includes("'queued'") &&
+    table.sql.includes("started_at") &&
+    table.sql.includes("'waiting_for_approval'") &&
+    table.sql.includes("'rejected'")
+  ) {
+    return;
+  }
 
   sqlite.exec(`
     pragma foreign_keys = off;
@@ -187,7 +249,7 @@ function migrateRunsTableIfNeeded() {
       id text primary key,
       scenario_id text not null,
       workflow text not null,
-      status text not null check (status in ('queued', 'running', 'completed', 'failed', 'cancelled')),
+      status text not null check (status in ('queued', 'running', 'waiting_for_approval', 'completed', 'failed', 'cancelled', 'rejected')),
       duration text not null,
       tokens integer not null,
       cost real not null,
@@ -227,7 +289,7 @@ function migrateRunsTableIfNeeded() {
       case
         when status = 'success' then 'completed'
         when status = 'error' then 'failed'
-        when status in ('queued', 'running', 'completed', 'failed', 'cancelled') then status
+        when status in ('queued', 'running', 'waiting_for_approval', 'completed', 'failed', 'cancelled', 'rejected') then status
         else 'completed'
       end,
       duration,

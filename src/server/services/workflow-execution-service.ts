@@ -1,10 +1,12 @@
 import type { ApiRun, ApiRunStatus } from "@/lib/api/schemas";
+import type { TraceEvent } from "@/lib/demo/types";
 import type { DemoScenario } from "@/lib/demo/types";
 import { artifactRepository } from "../repositories/artifact-repository";
 import { runRepository } from "../repositories/run-repository";
 import { scenarioRepository } from "../repositories/scenario-repository";
 import { traceRepository } from "../repositories/trace-repository";
 import { orchestrator } from "../orchestrator/Orchestrator";
+import { approvalService } from "../approvals/ApprovalService";
 import { badRequest, notFound } from "../utils/errors";
 import { getExecutionLogs, recordExecutionLog } from "../utils/execution-logger";
 
@@ -31,6 +33,7 @@ export class WorkflowExecutionService {
     const run = runRepository.findById(runId);
     if (!run) throw notFound("Run not found");
     if (run.status === "completed") throw badRequest("Completed runs must be replayed.");
+    if (run.status === "waiting_for_approval") return this.getRunStatus(runId);
     if (run.status === "running") return this.getRunStatus(runId);
 
     const scenario = this.getScenarioForRun(run);
@@ -100,6 +103,62 @@ export class WorkflowExecutionService {
     };
   }
 
+  async approveApproval(approvalId: string, reviewerNote?: string): Promise<ApiRunStatus> {
+    const approval = approvalService.approve(approvalId, reviewerNote);
+    const run = runRepository.findById(approval.runId);
+    if (!run) throw notFound("Run not found");
+    const scenario = this.getScenarioForRun(run);
+
+    this.appendApprovalTrace(run.id, {
+      message: `Approval granted for ${approval.requestedAction}. Execution resumed and final artifact publishing is allowed.`,
+      tone: "success",
+      cost: 0,
+      latencyMs: 120,
+    });
+
+    await this.completeRun(run, scenario);
+    recordExecutionLog({
+      runId: run.id,
+      event: "approval.approved",
+      status: "completed",
+      details: { approvalId, reviewerNote: reviewerNote ?? null },
+    });
+
+    return this.getRunStatus(run.id);
+  }
+
+  async rejectApproval(approvalId: string, reviewerNote?: string): Promise<ApiRunStatus> {
+    const approval = approvalService.reject(approvalId, reviewerNote);
+    const run = runRepository.findById(approval.runId);
+    if (!run) throw notFound("Run not found");
+
+    const now = new Date().toISOString();
+    runRepository.updateStep(run.id, approval.stepId, {
+      status: "failed",
+      completedAt: now,
+    });
+    runRepository.updateLifecycle(run.id, {
+      status: "rejected",
+      currentStepId: approval.stepId,
+      completedAt: now,
+    });
+    this.appendApprovalTrace(run.id, {
+      message: `Approval rejected for ${approval.requestedAction}. Run stopped before final artifact release.`,
+      tone: "warn",
+      cost: 0,
+      latencyMs: 90,
+    });
+
+    recordExecutionLog({
+      runId: run.id,
+      event: "approval.rejected",
+      status: "rejected",
+      details: { approvalId, reviewerNote: reviewerNote ?? null },
+    });
+
+    return this.getRunStatus(run.id);
+  }
+
   getRunContext(runId: string) {
     const run = runRepository.findById(runId);
     if (!run) throw notFound("Run not found");
@@ -142,6 +201,11 @@ export class WorkflowExecutionService {
     const totalDuration = scenario.steps.length * STEP_DURATION_MS;
 
     if (elapsed >= totalDuration) {
+      const approval = approvalService.ensureBeforeFinalArtifact(run, scenario);
+      if (approval?.status === "pending") {
+        await this.pauseForApproval(run, scenario, approval.id);
+        return;
+      }
       await this.completeRun(run, scenario);
       return;
     }
@@ -206,7 +270,10 @@ export class WorkflowExecutionService {
       });
     });
 
-    traceRepository.replaceForRun(run.id, snapshot.traces);
+    const approvalTrace = (traceRepository.listForRun(run.id) ?? []).filter(
+      (event) => event.agent === "Human Approval Gate",
+    );
+    traceRepository.replaceForRun(run.id, [...snapshot.traces, ...approvalTrace]);
 
     const artifactMarkdown = orchestrator.getFinalMarkdown(snapshot.context, scenario);
     artifactRepository.upsertForRun({
@@ -243,6 +310,84 @@ export class WorkflowExecutionService {
         averageConfidence: snapshot.averageConfidence,
       },
     });
+  }
+
+  private async pauseForApproval(run: ApiRun, scenario: DemoScenario, approvalId: string) {
+    const now = new Date().toISOString();
+    const reviewerIndex = Math.max(
+      0,
+      scenario.steps.findIndex((step) => step.id === "reviewer"),
+    );
+    const snapshot = await orchestrator.advance(run, scenario, reviewerIndex);
+    const trace = [
+      ...snapshot.traces,
+      this.createApprovalTrace(run.id, {
+        message:
+          "Approval requested before publishing the final artifact. Human reviewer must approve or reject this release.",
+        tone: "warn",
+        cost: 0,
+        latencyMs: 160,
+      }),
+    ];
+
+    scenario.steps.forEach((step, index) => {
+      runRepository.updateStep(run.id, step.id, {
+        status: index <= reviewerIndex ? "completed" : "pending",
+        startedAt: runRepository.getLifecycleMetadata(run.id)?.startedAt ?? now,
+        completedAt: index <= reviewerIndex ? now : null,
+      });
+    });
+
+    traceRepository.replaceForRun(run.id, trace);
+    runRepository.updateLifecycle(run.id, {
+      status: "waiting_for_approval",
+      currentStepId: "reviewer",
+      started: "waiting for approval",
+      tokens: Math.round(scenario.costSummary.totalTokens * 0.9),
+      cost: Number((scenario.costSummary.totalCost * 0.9).toFixed(2)),
+      costSummary: {
+        ...scenario.costSummary,
+        runId: run.id,
+        totalTokens: Math.round(scenario.costSummary.totalTokens * 0.9),
+        totalCost: Number((scenario.costSummary.totalCost * 0.9).toFixed(2)),
+      },
+    });
+
+    recordExecutionLog({
+      runId: run.id,
+      event: "approval.requested",
+      status: "waiting_for_approval",
+      details: { approvalId, currentStepId: "reviewer" },
+    });
+  }
+
+  private appendApprovalTrace(
+    runId: string,
+    options: Pick<TraceEvent, "message" | "tone"> & Partial<Pick<TraceEvent, "latencyMs" | "cost">>,
+  ) {
+    const currentTrace = traceRepository.listForRun(runId) ?? [];
+    traceRepository.replaceForRun(runId, [
+      ...currentTrace,
+      this.createApprovalTrace(runId, options),
+    ]);
+  }
+
+  private createApprovalTrace(
+    runId: string,
+    options: Pick<TraceEvent, "message" | "tone"> & Partial<Pick<TraceEvent, "latencyMs" | "cost">>,
+  ): TraceEvent {
+    return {
+      id: `trace_${runId}_approval_${Date.now()}`,
+      runId,
+      stepId: "reviewer",
+      ts: new Date().toISOString(),
+      agent: "Human Approval Gate",
+      message: options.message,
+      tone: options.tone,
+      type: "review",
+      latencyMs: options.latencyMs,
+      cost: options.cost,
+    };
   }
 
   private getScenarioForRun(run: ApiRun): DemoScenario {

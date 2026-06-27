@@ -12,20 +12,29 @@ import { traceService } from "../services/trace-service";
 import { workflowExecutionService } from "../services/workflow-execution-service";
 import { llmService } from "../llm/LLMService";
 import { mcpService } from "../services/mcp-service";
+import { memoryService } from "../memory/MemoryService";
+import { approvalService } from "../approvals/ApprovalService";
 import { json, parseJsonBody, validateParams } from "../utils/http";
 import {
+  approvalDecisionRequestSchema,
+  approvalResponseSchema,
+  approvalsResponseSchema,
   artifactResponseSchema,
   createRunRequestSchema,
   healthResponseSchema,
   idParamSchema,
   llmTestRequestSchema,
   llmTestResponseSchema,
+  createMemoryRequestSchema,
+  memoriesResponseSchema,
+  memoryResponseSchema,
   runResponseSchema,
   runStatusResponseSchema,
   runsResponseSchema,
   scenarioResponseSchema,
   scenariosResponseSchema,
   traceResponseSchema,
+  updateMemoryRequestSchema,
 } from "../validation/schemas";
 import { toolExecuteRequestSchema, toolExecutionResponseSchema } from "../tools/validation";
 
@@ -97,6 +106,8 @@ const runAgentsResponseSchema = z.object({
 const runHandoffsResponseSchema = z.object({
   handoffs: z.array(z.unknown()),
 });
+
+const memoryDeleteResponseSchema = z.object({ deleted: z.boolean() });
 
 export const apiRoutes: ApiRoute[] = [
   {
@@ -280,6 +291,131 @@ export const apiRoutes: ApiRoute[] = [
       const data = runHandoffsResponseSchema.parse({
         handoffs: workflowExecutionService.getRunHandoffs(id),
       });
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/v1/runs/:id/memories",
+    summary: "List memories written for one workflow run.",
+    handler: ({ params, requestId }) => {
+      const { id } = validateParams(params, idParamSchema);
+      const data = memoriesResponseSchema.parse({ memories: memoryService.listForRun(id) });
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/v1/runs/:id/approvals",
+    summary: "List human approval requests for one workflow run.",
+    handler: ({ params, requestId }) => {
+      const { id } = validateParams(params, idParamSchema);
+      const data = approvalsResponseSchema.parse({ approvals: approvalService.listForRun(id) });
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/v1/scenarios/:id/memories",
+    summary: "List reusable workflow memories for one scenario.",
+    handler: ({ params, requestId }) => {
+      const { id } = validateParams(params, idParamSchema);
+      const data = memoriesResponseSchema.parse({ memories: memoryService.listForScenario(id) });
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/v1/approvals",
+    summary: "List human approval gates across workflow runs.",
+    handler: ({ requestId }) => {
+      const data = approvalsResponseSchema.parse({ approvals: approvalService.listApprovals() });
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/v1/approvals/:id",
+    summary: "Get one human approval request.",
+    handler: ({ params, requestId }) => {
+      const { id } = validateParams(params, idParamSchema);
+      const data = approvalResponseSchema.parse({ approval: approvalService.getApproval(id) });
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/v1/approvals/:id/approve",
+    summary: "Approve a pending human approval request and resume the run.",
+    handler: async ({ params, request, requestId }) => {
+      const { id } = validateParams(params, idParamSchema);
+      const payload = await parseJsonBody(request, approvalDecisionRequestSchema);
+      const data = runStatusResponseSchema.parse(
+        await workflowExecutionService.approveApproval(id, payload.reviewerNote),
+      );
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/v1/approvals/:id/reject",
+    summary: "Reject a pending human approval request and stop the run before release.",
+    handler: async ({ params, request, requestId }) => {
+      const { id } = validateParams(params, idParamSchema);
+      const payload = await parseJsonBody(request, approvalDecisionRequestSchema);
+      const data = runStatusResponseSchema.parse(
+        await workflowExecutionService.rejectApproval(id, payload.reviewerNote),
+      );
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/v1/memories",
+    summary: "List run, workflow, and global demo memories.",
+    handler: ({ requestId }) => {
+      const data = memoriesResponseSchema.parse({ memories: memoryService.listMemories() });
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/v1/memories/:id",
+    summary: "Get one memory record by ID.",
+    handler: ({ params, requestId }) => {
+      const { id } = validateParams(params, idParamSchema);
+      const data = memoryResponseSchema.parse({ memory: memoryService.getMemory(id) });
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/v1/memories",
+    summary: "Create a sanitized memory record.",
+    handler: async ({ request, requestId }) => {
+      const payload = await parseJsonBody(request, createMemoryRequestSchema);
+      const data = memoryResponseSchema.parse({ memory: memoryService.createMemory(payload) });
+      return json(data, requestId, 201);
+    },
+  },
+  {
+    method: "PATCH",
+    path: "/api/v1/memories/:id",
+    summary: "Update one sanitized memory record.",
+    handler: async ({ params, request, requestId }) => {
+      const { id } = validateParams(params, idParamSchema);
+      const payload = await parseJsonBody(request, updateMemoryRequestSchema);
+      const data = memoryResponseSchema.parse({ memory: memoryService.updateMemory(id, payload) });
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "DELETE",
+    path: "/api/v1/memories/:id",
+    summary: "Delete one memory record.",
+    handler: ({ params, requestId }) => {
+      const { id } = validateParams(params, idParamSchema);
+      const data = memoryDeleteResponseSchema.parse(memoryService.deleteMemory(id));
       return json(data, requestId);
     },
   },

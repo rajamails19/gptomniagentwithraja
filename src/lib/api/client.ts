@@ -1,4 +1,16 @@
-import type { ApiFinalArtifact, ApiRun, ApiRunStatus, ApiScenario, ApiTraceEvent } from "./schemas";
+import type {
+  ApiApprovalRequest,
+  ApiFinalArtifact,
+  ApiMemory,
+  ApiRun,
+  ApiRunStatus,
+  ApiScenario,
+  ApiTraceEvent,
+  CreateMemoryRequest,
+  UpdateMemoryRequest,
+} from "./schemas";
+
+export type { ApiApprovalRequest } from "./schemas";
 
 export type ApiHealth = {
   ok: boolean;
@@ -273,6 +285,72 @@ export async function getRunTrace(id: string) {
 export async function getRunArtifact(id: string) {
   const data = await requestJson<{ artifact: ApiFinalArtifact }>(`/api/v1/runs/${id}/artifact`);
   return data.artifact;
+}
+
+export async function getMemories() {
+  const data = await requestJson<{ memories: ApiMemory[] }>("/api/v1/memories");
+  return data.memories;
+}
+
+export async function getMemory(id: string) {
+  const data = await requestJson<{ memory: ApiMemory }>(`/api/v1/memories/${id}`);
+  return data.memory;
+}
+
+export async function createMemory(payload: CreateMemoryRequest) {
+  const data = await requestJson<{ memory: ApiMemory }>("/api/v1/memories", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return data.memory;
+}
+
+export async function updateMemory(id: string, payload: UpdateMemoryRequest) {
+  const data = await requestJson<{ memory: ApiMemory }>(`/api/v1/memories/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  return data.memory;
+}
+
+export async function deleteMemory(id: string) {
+  return requestJson<{ deleted: boolean }>(`/api/v1/memories/${id}`, { method: "DELETE" });
+}
+
+export async function getRunMemories(id: string) {
+  const data = await requestJson<{ memories: ApiMemory[] }>(`/api/v1/runs/${id}/memories`);
+  return data.memories;
+}
+
+export async function getScenarioMemories(id: string) {
+  const data = await requestJson<{ memories: ApiMemory[] }>(`/api/v1/scenarios/${id}/memories`);
+  return data.memories;
+}
+
+export async function getApprovals() {
+  const data = await requestJson<{ approvals: ApiApprovalRequest[] }>("/api/v1/approvals");
+  return data.approvals;
+}
+
+export async function getRunApprovals(id: string) {
+  const data = await requestJson<{ approvals: ApiApprovalRequest[] }>(
+    `/api/v1/runs/${id}/approvals`,
+  );
+  return data.approvals;
+}
+
+export async function approveApproval(id: string, reviewerNote?: string) {
+  return requestJson<ApiRunStatus>(`/api/v1/approvals/${id}/approve`, {
+    method: "POST",
+    body: JSON.stringify({ reviewerNote }),
+  });
+}
+
+export async function rejectApproval(id: string, reviewerNote?: string) {
+  return requestJson<ApiRunStatus>(`/api/v1/approvals/${id}/reject`, {
+    method: "POST",
+    body: JSON.stringify({ reviewerNote }),
+  });
 }
 
 export async function getApiRoutes() {

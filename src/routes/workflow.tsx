@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Play, RotateCcw, Rewind, FileText, Bug, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ApprovalsPanel } from "@/components/ApprovalsPanel";
 import {
   EmptyState,
   PageHeader,
@@ -192,6 +193,8 @@ function WorkflowPage() {
           </div>
         }
       />
+
+      <ApprovalsPanel />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-4">
         <Panel className="p-0 overflow-hidden">

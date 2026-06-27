@@ -206,6 +206,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         runTokens: status.run.tokens,
       });
 
+      if (status.run.status === "waiting_for_approval") {
+        setIsRunning(false);
+        setIsComplete(false);
+      }
+
       if (status.run.status === "completed") {
         setIsRunning(false);
         setIsComplete(true);

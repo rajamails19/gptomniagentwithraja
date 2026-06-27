@@ -28,6 +28,7 @@ export class TraceRepository {
       latencyMs: row.latencyMs ?? undefined,
       cost: row.cost ?? undefined,
       toolCallId: row.toolCallId ?? undefined,
+      memoryIds: row.memoryIdsJson ? (JSON.parse(row.memoryIdsJson) as string[]) : undefined,
     }));
   }
 
@@ -51,6 +52,7 @@ export class TraceRepository {
             latencyMs: event.latencyMs ?? null,
             cost: event.cost ?? null,
             toolCallId: event.toolCallId ?? null,
+            memoryIdsJson: event.memoryIds?.length ? JSON.stringify(event.memoryIds) : null,
             createdAt: now,
           })),
         )

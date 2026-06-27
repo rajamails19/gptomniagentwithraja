@@ -74,9 +74,28 @@ Execution lifecycle:
 - `POST /api/v1/runs/:id/start` starts deterministic backend execution.
 - `GET /api/v1/runs/:id/status` advances and returns the persisted lifecycle state.
 - While running, steps move through `pending`, `running`, and `completed`.
+- Scenario policy can pause a run as `waiting_for_approval` before final artifact release.
 - Trace events are persisted as the run progresses.
 - The final artifact is persisted when the run reaches `completed`.
 - The current frontend calls the backend first and falls back to the local deterministic demo engine if the API is unavailable.
+
+Human approval gates:
+
+- Approval logic lives under `src/server/approvals/`.
+- Approval requests are persisted in SQLite in `approval_requests`.
+- The current policy gates the API Documentation Generation scenario before final artifact publishing and can also trigger on cost threshold.
+- Pending approvals expose risk level, reason, requested action, and artifact preview.
+- Approving resumes the run and completes final artifact publishing.
+- Rejecting marks the run `rejected` and writes the decision path to trace events.
+- The Workflow page includes a compact approvals panel. The Debugger shows approval request/decision events in the trace stream.
+
+Approval APIs:
+
+- `GET /api/v1/approvals`
+- `GET /api/v1/approvals/:id`
+- `GET /api/v1/runs/:id/approvals`
+- `POST /api/v1/approvals/:id/approve`
+- `POST /api/v1/approvals/:id/reject`
 
 LLM provider configuration:
 
@@ -106,6 +125,20 @@ Tool execution framework:
 - Tool executions are logged to SQLite with run ID, trace event ID, input/output summaries, status, duration, error, and timestamp.
 - Initial safe local tools: `openapi-inspector`, `markdown-generator`, `risk-scanner`, `cost-estimator`, and `trace-summarizer`.
 - To add a tool, implement `BaseTool`, register it in `ToolRegistry`, and keep inputs/outputs non-dangerous and schema-validated.
+
+Agent memory system:
+
+- Memory lives under `src/server/memory/`.
+- Supported scopes are `run`, `workflow`, and `global`.
+- Run memory is current-execution context only.
+- Workflow memory is reusable for the selected scenario.
+- Global memory is shared demo-level knowledge across workflows.
+- Memory records include `id`, `scope`, `runId`, `scenarioId`, `agentId`, `content`, `tags`, `importance`, `source`, `createdAt`, and `updatedAt`.
+- Before an agent runs, the orchestrator retrieves relevant memories through `MemoryRetriever`.
+- After an agent finishes, `MemorySummarizer` writes concise memory summaries.
+- `MemoryPolicy` redacts or blocks API keys, bearer tokens, passwords, raw private tokens, and other secrets.
+- Current retrieval is deterministic and tag/keyword based; no vector database is used yet.
+- Future vector search can add embeddings to a `memory_embeddings` table or a managed vector store while keeping `MemoryService` and frontend API contracts stable.
 
 MCP configuration:
 
@@ -194,6 +227,13 @@ Available endpoints:
 - `GET /api/v1/mcp/tools`
 - `POST /api/v1/mcp/connect`
 - `POST /api/v1/mcp/disconnect`
+- `GET /api/v1/memories`
+- `GET /api/v1/memories/:id`
+- `POST /api/v1/memories`
+- `PATCH /api/v1/memories/:id`
+- `DELETE /api/v1/memories/:id`
+- `GET /api/v1/runs/:id/memories`
+- `GET /api/v1/scenarios/:id/memories`
 - `GET /api/v1/settings`
 - `GET /api/v1/developer/routes`
 - `GET /api/v1/developer/logs`
@@ -229,6 +269,12 @@ curl -X POST http://localhost:8087/api/v1/runs/<run-id>/start
 curl http://localhost:8087/api/v1/runs/<run-id>/status
 curl http://localhost:8087/api/v1/runs/<run-id>/trace
 curl http://localhost:8087/api/v1/runs/<run-id>/artifact
+curl http://localhost:8087/api/v1/memories
+curl -X POST http://localhost:8087/api/v1/memories \
+  -H "content-type: application/json" \
+  -d '{"scope":"global","content":"Demo memory note","tags":["demo"],"importance":60,"source":"manual"}'
+curl http://localhost:8087/api/v1/runs/<run-id>/memories
+curl http://localhost:8087/api/v1/scenarios/payments-api-docs/memories
 ```
 
 If your local dev server starts on a different port, replace `8087` with the port printed by Vite.
@@ -244,7 +290,7 @@ PostgreSQL migration path:
 - Replace SQLite table definitions with Drizzle PostgreSQL table definitions.
 - Replace the SQLite connection in `src/server/db/connection.ts` with a PostgreSQL connection.
 - Preserve repository method contracts such as `list`, `findById`, `create`, `listForRun`, and `findForRun`.
-- Move local `.data/` storage to managed PostgreSQL tables for `scenarios`, `runs`, `trace_events`, `artifacts`, `agents`, `tools`, and `settings`.
+- Move local `.data/` storage to managed PostgreSQL tables for `scenarios`, `runs`, `trace_events`, `artifacts`, `agents`, `tools`, `settings`, and `memories`.
 
 ## Vercel Deployment
 

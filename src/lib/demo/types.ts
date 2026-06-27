@@ -50,6 +50,7 @@ export interface TraceEvent {
   latencyMs?: number;
   cost?: number;
   toolCallId?: string;
+  memoryIds?: string[];
 }
 
 export interface ToolCall {

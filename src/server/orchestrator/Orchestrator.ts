@@ -1,6 +1,7 @@
 import type { ApiRun } from "@/lib/api/schemas";
 import type { DemoNodeId, DemoScenario, TraceEvent } from "@/lib/demo/types";
 import { DEFAULT_SCENARIO_ID } from "@/lib/demo/seed-data";
+import { memoryService } from "../memory/MemoryService";
 import { orchestrationRepository } from "../repositories/orchestration-repository";
 import { recordExecutionLog } from "../utils/execution-logger";
 import { agentExecutor } from "./AgentExecutor";
@@ -143,6 +144,18 @@ export class Orchestrator {
     }
 
     const agent = agentRegistry.get(agentId);
+    const stepDefinition = scenario.steps.find((step) => step.id === stepId);
+    const retrievedMemories = stepDefinition
+      ? memoryService.prepareForAgent({
+          runId: context.runId,
+          scenarioId: context.scenarioId,
+          agentId: agent.id,
+          step: stepDefinition,
+        })
+      : [];
+    const memoryReferences = [
+      ...new Set([...context.memoryReferences, ...retrievedMemories.map((memory) => memory.id)]),
+    ];
     let result: AgentExecutionResult;
     let attempts = 0;
     try {
@@ -150,6 +163,7 @@ export class Orchestrator {
         ...context,
         currentStep: stepId,
         currentAgent: agent.name,
+        memoryReferences,
       });
     } catch (error) {
       result = this.failedResult(context.runId, stepId, agent.id, agent.name, error);
@@ -161,6 +175,7 @@ export class Orchestrator {
         ...context,
         currentStep: stepId,
         currentAgent: agent.name,
+        memoryReferences,
       });
     }
 
@@ -197,7 +212,39 @@ export class Orchestrator {
       latencyMs: handoff.latencyMs,
     };
 
-    const traces = [...context.trace, ...result.traceEvents, handoffTrace];
+    const memory = memoryService.recordAgentMemory(
+      {
+        runId: context.runId,
+        scenarioId: context.scenarioId,
+        agentId: agent.id,
+        stepId,
+        stepLabel: stepDefinition?.label ?? stepId,
+        summary: result.summary,
+      },
+      retrievedMemories,
+    );
+
+    const memoryTrace: TraceEvent = {
+      id: `${context.runId}-${stepId}-memory`,
+      runId: context.runId,
+      stepId,
+      ts: this.tsForIndex(index, 7),
+      agent: agent.name,
+      message: `Memory updated: retrieved ${memory.retrieved.length}, wrote ${memory.written.length}.`,
+      tone: "info",
+      type: "status",
+      memoryIds: memory.memoryIds,
+    };
+
+    const traces = [
+      ...context.trace,
+      ...result.traceEvents.map((event) => ({
+        ...event,
+        memoryIds: event.memoryIds ?? memory.memoryIds,
+      })),
+      memoryTrace,
+      { ...handoffTrace, memoryIds: memory.memoryIds },
+    ];
     const artifacts = { ...context.artifacts, ...result.artifacts };
     if (stepId === "docs" && !artifacts.documentationMarkdown) {
       artifacts.documentationMarkdown = scenario.finalArtifact.markdown;
@@ -209,6 +256,7 @@ export class Orchestrator {
       artifacts,
       toolOutputs: { ...context.toolOutputs, ...result.toolOutputs },
       trace: traces,
+      memoryReferences: [...new Set([...memoryReferences, ...memory.memoryIds])],
       handoffs: [...context.handoffs, handoff],
       metadata: {
         ...context.metadata,

@@ -9,6 +9,7 @@ export type ProductStatus =
   | "queued"
   | "pending"
   | "waiting"
+  | "waiting_for_approval"
   | "idle"
   | "review"
   | "approved"
@@ -17,6 +18,7 @@ export type ProductStatus =
   | "retrying"
   | "retried"
   | "cancelled"
+  | "rejected"
   | "default";
 
 const statusStyles: Record<
@@ -54,6 +56,12 @@ const statusStyles: Record<
     label: "Waiting",
     dot: "bg-muted-foreground",
     badge: "text-muted-foreground bg-white/5 border-border",
+  },
+  waiting_for_approval: {
+    label: "Approval",
+    dot: "bg-[var(--amber)]",
+    badge: "text-[var(--amber)] bg-[oklch(0.82_0.17_75/0.12)] border-[oklch(0.82_0.17_75/0.3)]",
+    pulse: true,
   },
   idle: {
     label: "Waiting",
@@ -97,6 +105,12 @@ const statusStyles: Record<
     label: "Cancelled",
     dot: "bg-muted-foreground",
     badge: "text-muted-foreground bg-white/5 border-border",
+  },
+  rejected: {
+    label: "Rejected",
+    dot: "bg-[var(--destructive)]",
+    badge:
+      "text-[oklch(0.78_0.2_25)] bg-[oklch(0.65_0.22_25/0.12)] border-[oklch(0.65_0.22_25/0.3)]",
   },
   default: {
     label: "Waiting",

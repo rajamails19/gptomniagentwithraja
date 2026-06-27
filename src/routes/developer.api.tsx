@@ -1,21 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Activity, Braces, ClipboardList, Server } from "lucide-react";
+import { Activity, Braces, ClipboardList, Server, ShieldCheck } from "lucide-react";
 
 import { PageHeader, Panel, StatBadge, StatusBadge } from "@/components/ui/page";
 import {
   getApiLogs,
   getApiRoutes,
+  getApprovals,
   getExecutionLogs,
   getHealth,
   getMcpOverview,
+  getMemories,
   getRuns,
   getToolExecutions,
   getTools,
   getDeveloperToken,
   saveDeveloperToken,
   type ApiHealth,
+  type ApiApprovalRequest,
   type ApiMCPOverview,
+  type ApiMemory,
   type ApiRequestLog,
   type ApiToolExecution,
   type ApiToolSummary,
@@ -39,6 +43,11 @@ const sampleRequests = [
   'curl -X POST http://localhost:8080/api/v1/tools/openapi-inspector/execute -H "content-type: application/json" -d \'{"input":{"endpoints":[{"method":"GET","path":"/health","summary":"Health check"}]}}\'',
   "curl http://localhost:8080/api/v1/runs/exec_pr_104/trace",
   "curl http://localhost:8080/api/v1/runs/exec_pr_104/artifact",
+  "curl http://localhost:8080/api/v1/memories",
+  'curl -X POST http://localhost:8080/api/v1/memories -H "content-type: application/json" -d \'{"scope":"global","content":"Demo memory note","tags":["demo"],"importance":60,"source":"manual"}\'',
+  "curl http://localhost:8080/api/v1/approvals",
+  "curl http://localhost:8080/api/v1/runs/{id}/approvals",
+  'curl -X POST http://localhost:8080/api/v1/approvals/{id}/approve -H "content-type: application/json" -d \'{"reviewerNote":"Approved for demo release."}\'',
 ];
 
 function DeveloperApiPage() {
@@ -51,6 +60,8 @@ function DeveloperApiPage() {
   const [tools, setTools] = useState<ApiToolSummary[]>([]);
   const [toolExecutions, setToolExecutions] = useState<ApiToolExecution[]>([]);
   const [mcpOverview, setMcpOverview] = useState<ApiMCPOverview | null>(null);
+  const [memories, setMemories] = useState<ApiMemory[]>([]);
+  const [approvals, setApprovals] = useState<ApiApprovalRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -77,6 +88,8 @@ function DeveloperApiPage() {
           nextTools,
           nextToolExecutions,
           nextMcpOverview,
+          nextMemories,
+          nextApprovals,
         ] = await Promise.all([
           getHealth(),
           getApiRoutes(),
@@ -86,6 +99,8 @@ function DeveloperApiPage() {
           getTools(),
           getToolExecutions(),
           getMcpOverview(),
+          getMemories(),
+          getApprovals(),
         ]);
         if (!active) return;
         setHealth(nextHealth);
@@ -96,6 +111,8 @@ function DeveloperApiPage() {
         setTools(nextTools);
         setToolExecutions(nextToolExecutions);
         setMcpOverview(nextMcpOverview);
+        setMemories(nextMemories);
+        setApprovals(nextApprovals);
         setError(null);
       } catch (apiError) {
         if (!active) return;
@@ -126,6 +143,12 @@ function DeveloperApiPage() {
     [health],
   );
   const latestRun = runs.at(-1) ?? null;
+  const memoryCounts = {
+    run: memories.filter((memory) => memory.scope === "run").length,
+    workflow: memories.filter((memory) => memory.scope === "workflow").length,
+    global: memories.filter((memory) => memory.scope === "global").length,
+  };
+  const pendingApprovals = approvals.filter((approval) => approval.status === "pending");
 
   return (
     <div className="space-y-6">
@@ -267,6 +290,72 @@ function DeveloperApiPage() {
           </div>
           <pre className="mt-4 max-h-[260px] overflow-auto rounded-lg border border-border/60 bg-black/20 p-3 text-[11px] text-muted-foreground">
             {JSON.stringify(executionLogs.slice(0, 8), null, 2)}
+          </pre>
+        </Panel>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <Panel>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <ShieldCheck className="h-4 w-4 text-[var(--amber)]" />
+            Approval gates
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+            {[
+              ["Pending", pendingApprovals.length],
+              ["Approved", approvals.filter((approval) => approval.status === "approved").length],
+              ["Rejected", approvals.filter((approval) => approval.status === "rejected").length],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-border/60 bg-white/[0.03] p-3">
+                <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  {label}
+                </div>
+                <div className="mt-1 text-2xl font-semibold">{value}</div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Activity className="h-4 w-4 text-[var(--amber)]" />
+            Recent approval requests
+          </div>
+          <pre className="mt-4 max-h-[260px] overflow-auto rounded-lg border border-border/60 bg-black/20 p-3 text-[11px] text-muted-foreground">
+            {JSON.stringify(approvals.slice(0, 8), null, 2)}
+          </pre>
+        </Panel>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <Panel>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Braces className="h-4 w-4 text-[var(--cyan)]" />
+            Memory system
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+            {[
+              ["Run", memoryCounts.run],
+              ["Workflow", memoryCounts.workflow],
+              ["Global", memoryCounts.global],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-border/60 bg-white/[0.03] p-3">
+                <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  {label}
+                </div>
+                <div className="mt-1 text-2xl font-semibold">{value}</div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Activity className="h-4 w-4 text-[var(--emerald)]" />
+            Recent memory writes
+          </div>
+          <pre className="mt-4 max-h-[260px] overflow-auto rounded-lg border border-border/60 bg-black/20 p-3 text-[11px] text-muted-foreground">
+            {JSON.stringify(memories.slice(0, 8), null, 2)}
           </pre>
         </Panel>
       </div>

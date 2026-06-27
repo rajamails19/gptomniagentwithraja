@@ -5,6 +5,7 @@ import { createTrace } from "../models/mappers";
 import {
   agentsTable,
   artifactsTable,
+  memoriesTable,
   runsTable,
   scenariosTable,
   settingsTable,
@@ -107,6 +108,7 @@ export function seedDatabaseIfNeeded() {
             latencyMs: event.latencyMs ?? null,
             cost: event.cost ?? null,
             toolCallId: event.toolCallId ?? null,
+            memoryIdsJson: null,
             createdAt: now,
           })),
         )
@@ -129,9 +131,62 @@ export function seedDatabaseIfNeeded() {
   }
 
   seedMissingWorkflowSteps(now);
+  seedMemoriesIfNeeded(now);
 
   seeded = true;
   return getSeedStatus();
+}
+
+function seedMemoriesIfNeeded(now: string) {
+  const [{ total }] = db.select({ total: count() }).from(memoriesTable).all();
+  if (total > 0) return;
+
+  db.insert(memoriesTable)
+    .values([
+      {
+        id: "mem_global_demo_positioning",
+        scope: "global",
+        runId: null,
+        scenarioId: null,
+        agentId: null,
+        content:
+          "OmniAgents is positioned as an AI control room: plan, execute, observe, govern, and track cost across agent workflows.",
+        tagsJson: JSON.stringify(["global", "demo", "positioning", "governance"]),
+        importance: 82,
+        source: "seed.global_demo_memory",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "mem_workflow_api_docs_quality",
+        scope: "workflow",
+        runId: null,
+        scenarioId: "payments-api-docs",
+        agentId: "qa",
+        content:
+          "API documentation workflows should validate auth notes, endpoint coverage, examples, and final reviewer approval before publishing.",
+        tagsJson: JSON.stringify(["workflow", "payments-api-docs", "qa", "validation"]),
+        importance: 74,
+        source: "seed.workflow_memory",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "mem_workflow_security_response",
+        scope: "workflow",
+        runId: null,
+        scenarioId: "security-incident-investigation",
+        agentId: "research",
+        content:
+          "Security incident demos should preserve timeline, evidence sources, affected systems, risk level, and containment recommendation.",
+        tagsJson: JSON.stringify(["workflow", "security", "research", "incident"]),
+        importance: 72,
+        source: "seed.workflow_memory",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ])
+    .run();
 }
 
 export function getSeedStatus() {

@@ -306,7 +306,9 @@ function toApiRun(row: RunRow): ApiRun {
   };
 }
 
-function normalizeRunStatus(status: ApiRun["status"] | undefined) {
+type PersistedRunStatus = Exclude<ApiRun["status"], "success" | "error">;
+
+function normalizeRunStatus(status: ApiRun["status"] | undefined): PersistedRunStatus | undefined {
   if (!status) return undefined;
   if (status === "success") return "completed";
   if (status === "error") return "failed";

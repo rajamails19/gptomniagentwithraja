@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader, Panel, StatBadge } from "@/components/ui/page";
+import { getMemories } from "@/lib/api/client";
+import type { ApiMemory, ApiMemoryScope } from "@/lib/api/schemas";
 import { memoryCards } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/memory")({
@@ -9,118 +11,237 @@ export const Route = createFileRoute("/memory")({
       { title: "Memory Explorer — OmniAgents" },
       {
         name: "description",
-        content: "Inspect session memory, long-term store, retrieved chunks and vector results.",
+        content: "Inspect run memory, workflow memory, and global demo memory.",
       },
     ],
   }),
   component: MemoryPage,
 });
 
+const scopes: Array<ApiMemoryScope | "all"> = ["all", "run", "workflow", "global"];
+
 function MemoryPage() {
-  const [selected, setSelected] = useState(memoryCards[0].id);
-  const m = memoryCards.find((x) => x.id === selected)!;
-  const ctxUsed = 68;
+  const [memories, setMemories] = useState<ApiMemory[]>([]);
+  const [scope, setScope] = useState<ApiMemoryScope | "all">("all");
+  const [agent, setAgent] = useState("all");
+  const [scenario, setScenario] = useState("all");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [usingFallback, setUsingFallback] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getMemories()
+      .then((next) => {
+        if (!active) return;
+        setMemories(next);
+        setSelectedId((value) => value ?? next[0]?.id ?? null);
+        setUsingFallback(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setUsingFallback(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const fallbackMemories = useMemo<ApiMemory[]>(
+    () =>
+      memoryCards.map((card) => ({
+        id: card.id,
+        scope: card.kind === "Session" ? "run" : card.kind === "Long-term" ? "workflow" : "global",
+        runId: card.kind === "Session" ? "demo_run" : null,
+        scenarioId: "api-docs-generation",
+        agentId: card.kind === "Vector" ? "research" : "planner",
+        content: card.body,
+        tags: [card.kind.toLowerCase(), "demo"],
+        importance: card.fresh,
+        source: "static_fallback",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })),
+    [],
+  );
+
+  const displayMemories = memories.length > 0 ? memories : fallbackMemories;
+  const agents = [...new Set(displayMemories.map((memory) => memory.agentId).filter(Boolean))];
+  const scenarios = [
+    ...new Set(displayMemories.map((memory) => memory.scenarioId).filter(Boolean)),
+  ];
+  const filtered = displayMemories.filter((memory) => {
+    if (scope !== "all" && memory.scope !== scope) return false;
+    if (agent !== "all" && memory.agentId !== agent) return false;
+    if (scenario !== "all" && memory.scenarioId !== scenario) return false;
+    return true;
+  });
+  const selected = filtered.find((memory) => memory.id === selectedId) ?? filtered[0];
+  const scopeCounts = scopes.slice(1).map((item) => ({
+    scope: item,
+    count: displayMemories.filter((memory) => memory.scope === item).length,
+  }));
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Memory Explorer"
-        description="Visualize what the agents remember, retrieve and forget."
+        description="Inspect run memory, workflow memory, and global demo memory used by agents."
+        actions={
+          <StatBadge tone={usingFallback ? "warn" : "success"}>
+            {usingFallback ? "Static fallback" : "Backend memory"}
+          </StatBadge>
+        }
       />
 
-      <Panel>
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <div className="text-sm font-semibold">Context window usage</div>
-            <div className="text-xs text-muted-foreground">
-              87,420 / 128,000 tokens used in current run
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        {scopeCounts.map((item) => (
+          <Panel key={item.scope}>
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              {item.scope} memory
             </div>
-          </div>
-          <StatBadge tone="info">{ctxUsed}% utilized</StatBadge>
-        </div>
-        <div className="mt-3 h-3 rounded-full bg-white/5 overflow-hidden border border-border/60">
-          <div
-            className="h-full bg-gradient-to-r from-[var(--electric)] via-[var(--cyan)] to-[var(--violet)]"
-            style={{ width: `${ctxUsed}%` }}
-          />
-        </div>
-        <div className="mt-2 flex justify-between text-[11px] text-muted-foreground">
-          <span>0</span>
-          <span>32K</span>
-          <span>64K</span>
-          <span>96K</span>
-          <span>128K</span>
+            <div className="mt-1 text-3xl font-semibold">{item.count}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {item.scope === "run"
+                ? "Current execution context"
+                : item.scope === "workflow"
+                  ? "Reusable scenario knowledge"
+                  : "Shared demo knowledge"}
+            </div>
+          </Panel>
+        ))}
+      </div>
+
+      <Panel>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Filter label="Scope" value={scope} onChange={(value) => setScope(value as typeof scope)}>
+            {scopes.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </Filter>
+          <Filter label="Agent" value={agent} onChange={setAgent}>
+            <option value="all">all</option>
+            {agents.map((item) => (
+              <option key={item} value={item ?? ""}>
+                {item}
+              </option>
+            ))}
+          </Filter>
+          <Filter label="Scenario" value={scenario} onChange={setScenario}>
+            <option value="all">all</option>
+            {scenarios.map((item) => (
+              <option key={item} value={item ?? ""}>
+                {item}
+              </option>
+            ))}
+          </Filter>
         </div>
       </Panel>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {memoryCards.map((c) => (
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_380px]">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {filtered.map((memory) => (
             <button
-              key={c.id}
-              onClick={() => setSelected(c.id)}
-              className={`text-left rounded-2xl glass p-4 hover:bg-white/[0.06] transition ${selected === c.id ? "ring-1 ring-[var(--electric)]/40" : ""}`}
+              key={memory.id}
+              onClick={() => setSelectedId(memory.id)}
+              className={`text-left rounded-2xl glass p-4 transition hover:bg-white/[0.06] ${
+                selected?.id === memory.id ? "ring-1 ring-[var(--electric)]/50" : ""
+              }`}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <StatBadge
                   tone={
-                    c.kind === "Session"
+                    memory.scope === "run"
                       ? "info"
-                      : c.kind === "Long-term"
-                        ? "default"
-                        : c.kind === "Vector"
-                          ? "success"
-                          : "warn"
+                      : memory.scope === "workflow"
+                        ? "success"
+                        : "warn"
                   }
                 >
-                  {c.kind}
+                  {memory.scope}
                 </StatBadge>
-                <span className="text-[11px] text-muted-foreground">fresh {c.fresh}%</span>
+                <span className="text-[11px] text-muted-foreground">
+                  importance {memory.importance}
+                </span>
               </div>
-              <div className="mt-2 text-sm font-semibold">{c.title}</div>
-              <div className="mt-1 text-xs text-muted-foreground line-clamp-3">{c.body}</div>
-              <div className="mt-3 h-1 rounded-full bg-white/5">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-[var(--emerald)] to-[var(--cyan)]"
-                  style={{ width: `${c.fresh}%` }}
-                />
+              <div className="mt-3 text-sm text-muted-foreground line-clamp-3">
+                {memory.content}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1">
+                {memory.tags.slice(0, 4).map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-md border border-border/60 bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                  >
+                    {tag}
+                  </span>
+                ))}
               </div>
             </button>
           ))}
         </div>
 
         <Panel>
-          <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Selected memory
-          </div>
-          <div className="mt-1 text-lg font-semibold">{m.title}</div>
-          <StatBadge tone="info">{m.kind}</StatBadge>
-          <p className="mt-3 text-sm text-muted-foreground">{m.body}</p>
-
-          <div className="mt-4 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Vector search
-          </div>
-          <div className="mt-2 space-y-1.5">
-            {[
-              { id: "chunk_8421", score: 0.94 },
-              { id: "chunk_8120", score: 0.91 },
-              { id: "chunk_7910", score: 0.88 },
-              { id: "chunk_7710", score: 0.83 },
-            ].map((r) => (
-              <div key={r.id} className="flex items-center gap-3 text-xs">
-                <span className="font-mono text-muted-foreground">{r.id}</span>
-                <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-[var(--electric)] to-[var(--violet)]"
-                    style={{ width: `${r.score * 100}%` }}
-                  />
-                </div>
-                <span className="tabular-nums w-10 text-right">{r.score.toFixed(2)}</span>
+          {selected ? (
+            <>
+              <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                Selected memory
               </div>
-            ))}
-          </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <StatBadge tone="info">{selected.scope}</StatBadge>
+                <StatBadge tone="default">{selected.source}</StatBadge>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">{selected.content}</p>
+              <div className="mt-5 space-y-2 text-xs">
+                <Detail label="ID" value={selected.id} />
+                <Detail label="Run" value={selected.runId ?? "not scoped"} />
+                <Detail label="Scenario" value={selected.scenarioId ?? "global"} />
+                <Detail label="Agent" value={selected.agentId ?? "shared"} />
+                <Detail label="Created" value={new Date(selected.createdAt).toLocaleString()} />
+              </div>
+            </>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              No memories match the current filters.
+            </div>
+          )}
         </Panel>
       </div>
+    </div>
+  );
+}
+
+function Filter({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="space-y-1.5">
+      <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-10 w-full rounded-lg border border-border/60 bg-white/5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/55"
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="truncate text-right font-mono">{value}</span>
     </div>
   );
 }
