@@ -66,6 +66,20 @@ const executionLogsResponseSchema = z.object({
   logs: z.array(z.unknown()),
 });
 
+const runContextResponseSchema = z.object({
+  context: z.unknown(),
+});
+
+const runAgentsResponseSchema = z.object({
+  runId: z.string(),
+  activeAgent: z.string().nullable(),
+  agents: z.array(z.unknown()),
+});
+
+const runHandoffsResponseSchema = z.object({
+  handoffs: z.array(z.unknown()),
+});
+
 export const apiRoutes: ApiRoute[] = [
   {
     method: "GET",
@@ -210,6 +224,43 @@ export const apiRoutes: ApiRoute[] = [
       await workflowExecutionService.getRunStatus(id);
       const data = artifactResponseSchema.parse({
         artifact: artifactService.getArtifactForRun(id),
+      });
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/v1/runs/:id/context",
+    summary: "Get shared orchestration context for a workflow run.",
+    handler: async ({ params, requestId }) => {
+      const { id } = validateParams(params, idParamSchema);
+      await workflowExecutionService.getRunStatus(id);
+      const data = runContextResponseSchema.parse({
+        context: workflowExecutionService.getRunContext(id),
+      });
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/v1/runs/:id/agents",
+    summary: "Get orchestration agents and active agent for a workflow run.",
+    handler: async ({ params, requestId }) => {
+      const { id } = validateParams(params, idParamSchema);
+      await workflowExecutionService.getRunStatus(id);
+      const data = runAgentsResponseSchema.parse(workflowExecutionService.getRunAgents(id));
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/v1/runs/:id/handoffs",
+    summary: "Get agent handoffs for a workflow run.",
+    handler: async ({ params, requestId }) => {
+      const { id } = validateParams(params, idParamSchema);
+      await workflowExecutionService.getRunStatus(id);
+      const data = runHandoffsResponseSchema.parse({
+        handoffs: workflowExecutionService.getRunHandoffs(id),
       });
       return json(data, requestId);
     },

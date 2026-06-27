@@ -1,15 +1,10 @@
 import type { ApiRun, ApiRunStatus } from "@/lib/api/schemas";
-import { DEFAULT_SCENARIO_ID } from "@/lib/demo/seed-data";
-import type { DemoNodeId, DemoScenario } from "@/lib/demo/types";
-import { llmService } from "../llm/LLMService";
-import { DeveloperPrompt } from "../llm/prompts/templates";
-import { createTrace } from "../models/mappers";
+import type { DemoScenario } from "@/lib/demo/types";
 import { artifactRepository } from "../repositories/artifact-repository";
 import { runRepository } from "../repositories/run-repository";
 import { scenarioRepository } from "../repositories/scenario-repository";
 import { traceRepository } from "../repositories/trace-repository";
-import { toolExecutionRepository } from "../repositories/tool-execution-repository";
-import { toolExecutor } from "../tools/ToolExecutor";
+import { orchestrator } from "../orchestrator/Orchestrator";
 import { badRequest, notFound } from "../utils/errors";
 import { getExecutionLogs, recordExecutionLog } from "../utils/execution-logger";
 
@@ -41,7 +36,7 @@ export class WorkflowExecutionService {
     const scenario = this.getScenarioForRun(run);
     const now = new Date().toISOString();
     runRepository.resetExecution(runId, scenario);
-    runRepository.updateLifecycle(runId, {
+    const resetRun = runRepository.updateLifecycle(runId, {
       status: "running",
       currentStepId: "user",
       started: "just now",
@@ -50,11 +45,13 @@ export class WorkflowExecutionService {
       cancelledAt: null,
     });
 
+    orchestrator.initialize(resetRun ?? run, scenario);
+
     recordExecutionLog({
       runId,
       event: "run.started",
       status: "running",
-      details: { scenarioId: scenario.id },
+      details: { scenarioId: scenario.id, engine: "orchestrator" },
     });
 
     return this.getRunStatus(runId);
@@ -103,6 +100,30 @@ export class WorkflowExecutionService {
     };
   }
 
+  getRunContext(runId: string) {
+    const run = runRepository.findById(runId);
+    if (!run) throw notFound("Run not found");
+    return (
+      orchestrator.getContext(runId) ?? orchestrator.initialize(run, this.getScenarioForRun(run))
+    );
+  }
+
+  getRunAgents(runId: string) {
+    const run = runRepository.findById(runId);
+    if (!run) throw notFound("Run not found");
+    return {
+      runId,
+      activeAgent: orchestrator.getContext(runId)?.metadata.activeAgent ?? null,
+      agents: orchestrator.listAgents(),
+    };
+  }
+
+  getRunHandoffs(runId: string) {
+    const run = runRepository.findById(runId);
+    if (!run) throw notFound("Run not found");
+    return orchestrator.getHandoffs(runId);
+  }
+
   listExecutionLogs() {
     return getExecutionLogs();
   }
@@ -128,8 +149,7 @@ export class WorkflowExecutionService {
     const activeIndex = Math.min(scenario.steps.length - 1, Math.floor(elapsed / STEP_DURATION_MS));
     const activeStep = scenario.steps[activeIndex];
     const now = new Date().toISOString();
-
-    await this.runStepTools(run, scenario, activeStep.id);
+    const snapshot = await orchestrator.advance(run, scenario, activeIndex);
 
     scenario.steps.forEach((step, index) => {
       runRepository.updateStep(runId, step.id, {
@@ -139,13 +159,7 @@ export class WorkflowExecutionService {
       });
     });
 
-    traceRepository.replaceForRun(
-      runId,
-      createTrace(scenario, runId).filter((event) => {
-        const stepIndex = scenario.steps.findIndex((step) => step.id === event.stepId);
-        return stepIndex >= 0 && stepIndex <= activeIndex;
-      }),
-    );
+    traceRepository.replaceForRun(runId, snapshot.traces);
 
     runRepository.updateLifecycle(runId, {
       status: "running",
@@ -170,14 +184,20 @@ export class WorkflowExecutionService {
 
     recordExecutionLog({
       runId,
-      event: "run.progressed",
+      event: "orchestrator.progressed",
       status: "running",
-      details: { currentStepId: activeStep.id },
+      details: {
+        currentStepId: activeStep.id,
+        activeAgent: snapshot.activeAgent,
+        averageConfidence: snapshot.averageConfidence,
+      },
     });
   }
 
   private async completeRun(run: ApiRun, scenario: DemoScenario) {
     const now = new Date().toISOString();
+    const snapshot = await orchestrator.complete(run, scenario);
+
     scenario.steps.forEach((step) => {
       runRepository.updateStep(run.id, step.id, {
         status: "completed",
@@ -186,13 +206,9 @@ export class WorkflowExecutionService {
       });
     });
 
-    traceRepository.replaceForRun(run.id, createTrace(scenario, run.id));
-    await this.runStepTools(run, scenario, "research");
-    await this.runStepTools(run, scenario, "docs");
-    await this.runStepTools(run, scenario, "qa");
-    await this.runStepTools(run, scenario, "final");
+    traceRepository.replaceForRun(run.id, snapshot.traces);
 
-    const artifactMarkdown = await this.generateFinalArtifact(run, scenario);
+    const artifactMarkdown = orchestrator.getFinalMarkdown(snapshot.context, scenario);
     artifactRepository.upsertForRun({
       ...scenario.finalArtifact,
       runId: run.id,
@@ -219,171 +235,14 @@ export class WorkflowExecutionService {
 
     recordExecutionLog({
       runId: run.id,
-      event: "run.completed",
+      event: "orchestrator.completed",
       status: "completed",
-      details: { artifact: scenario.finalArtifact.filename },
+      details: {
+        artifact: scenario.finalArtifact.filename,
+        handoffs: snapshot.handoffs.length,
+        averageConfidence: snapshot.averageConfidence,
+      },
     });
-  }
-
-  private async generateFinalArtifact(run: ApiRun, scenario: DemoScenario) {
-    if (scenario.id !== DEFAULT_SCENARIO_ID) return scenario.finalArtifact.markdown;
-
-    try {
-      const result = await llmService.generate({
-        system: DeveloperPrompt.system,
-        prompt: DeveloperPrompt.user(scenario),
-        executionId: run.id,
-        metadata: {
-          scenarioId: scenario.id,
-          workflow: scenario.title,
-        },
-      });
-
-      recordExecutionLog({
-        runId: run.id,
-        event: "llm.artifact.generated",
-        status: "completed",
-        details: {
-          provider: result.provider,
-          model: result.model,
-          latencyMs: result.latencyMs,
-          totalTokens: result.usage?.totalTokens,
-        },
-      });
-
-      return result.text.trim() || scenario.finalArtifact.markdown;
-    } catch (error) {
-      recordExecutionLog({
-        runId: run.id,
-        event: "llm.artifact.fallback",
-        status: "completed",
-        details: {
-          reason: error instanceof Error ? error.message : "LLM unavailable",
-        },
-      });
-      return scenario.finalArtifact.markdown;
-    }
-  }
-
-  private async runStepTools(run: ApiRun, scenario: DemoScenario, stepId: DemoNodeId) {
-    if (scenario.id !== DEFAULT_SCENARIO_ID) return;
-
-    const existing = toolExecutionRepository.listForRun(run.id);
-    const executeOnce = async (toolId: string, input: unknown, traceEventId: string) => {
-      if (
-        existing.some(
-          (execution) => execution.toolId === toolId && execution.traceEventId === traceEventId,
-        )
-      ) {
-        return;
-      }
-      try {
-        const result = await toolExecutor.execute(toolId, input, {
-          runId: run.id,
-          traceEventId,
-        });
-        recordExecutionLog({
-          runId: run.id,
-          event: "tool.executed",
-          status: "running",
-          details: { toolId, durationMs: result.durationMs },
-        });
-      } catch (error) {
-        recordExecutionLog({
-          runId: run.id,
-          event: "tool.failed",
-          status: "running",
-          details: {
-            toolId,
-            reason: error instanceof Error ? error.message : "Tool execution failed",
-          },
-        });
-      }
-    };
-
-    if (stepId === "research") {
-      await executeOnce(
-        "openapi-inspector",
-        {
-          endpoints: [
-            {
-              method: "POST",
-              path: "/payments/intents",
-              summary: "Create a PaymentIntent",
-              auth: "Bearer token required",
-            },
-            {
-              method: "GET",
-              path: "/payments/intents/:id",
-              summary: "Retrieve a PaymentIntent",
-              auth: "Bearer token required",
-            },
-            {
-              method: "POST",
-              path: "/payments/refunds",
-              summary: "Refund a captured charge",
-              auth: "Bearer token required",
-            },
-            {
-              method: "POST",
-              path: "/payments/disputes/:id/evidence",
-              summary: "Submit dispute evidence",
-              auth: "Bearer token required",
-            },
-          ],
-        },
-        "tool_research",
-      );
-    }
-
-    if (stepId === "docs") {
-      await executeOnce(
-        "markdown-generator",
-        {
-          title: scenario.finalArtifact.title,
-          bulletPoints: [
-            "Base URL documented",
-            "Auth and idempotency covered",
-            "Error table included",
-          ],
-          sections: [
-            {
-              heading: "Overview",
-              body: "Client-ready Payments API documentation generated from inspected endpoint evidence.",
-            },
-            {
-              heading: "Endpoints",
-              bullets: [
-                "POST /payments/intents",
-                "GET /payments/intents/:id",
-                "POST /payments/refunds",
-              ],
-            },
-          ],
-        },
-        "tool_draft",
-      );
-    }
-
-    if (stepId === "qa") {
-      await executeOnce(
-        "risk-scanner",
-        {
-          text: scenario.finalArtifact.markdown,
-        },
-        "tool_checklist",
-      );
-    }
-
-    if (stepId === "final") {
-      await executeOnce(
-        "trace-summarizer",
-        {
-          traceEvents: traceRepository.listForRun(run.id) ?? [],
-        },
-        "tool_summary",
-      );
-    }
   }
 
   private getScenarioForRun(run: ApiRun): DemoScenario {

@@ -49,6 +49,7 @@ import { agents, dashboardSeries, modelBreakdown, recentExecutions } from "@/lib
 import { useDemo } from "@/lib/demo-context";
 import { Button } from "@/components/ui/button";
 import { getHealth, getScenarios, type ApiHealth } from "@/lib/api/client";
+import { getAgentScores } from "@/lib/demo/intelligence";
 import type { ApiScenario } from "@/lib/api/schemas";
 
 export const Route = createFileRoute("/")({
@@ -110,6 +111,17 @@ function Dashboard() {
   }, []);
 
   const scenarioOptions = apiScenarios ?? demo.scenarios;
+  const activeStep =
+    currentRun.stepRuns.find((step) => step.id === currentRun.currentStepId) ??
+    currentRun.stepRuns.find((step) => step.status === "running") ??
+    currentRun.stepRuns[0];
+  const completedSteps = currentRun.stepRuns.filter((step) => step.status === "completed").length;
+  const orchestrationConfidence = Math.round(
+    currentRun.stepRuns
+      .filter((step) => step.status !== "pending")
+      .map((step) => getAgentScores(step).confidence)
+      .reduce((sum, value, _, values) => sum + value / values.length, activeStep ? 0 : 0),
+  );
 
   const stats = [
     {
@@ -245,9 +257,18 @@ function Dashboard() {
               </span>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:min-w-[420px]">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 lg:min-w-[420px]">
             {[
-              { k: "Workflows", v: "284" },
+              {
+                k: "Active agent",
+                v: activeStep?.agent === "—" ? "Orchestrator" : activeStep?.agent,
+              },
+              { k: "Stage", v: activeStep?.label ?? "Ready" },
+              { k: "Progress", v: `${completedSteps}/${currentRun.stepRuns.length}` },
+              {
+                k: "Confidence",
+                v: orchestrationConfidence ? `${orchestrationConfidence}%` : "Ready",
+              },
               { k: "Agents", v: "12" },
               { k: "Models", v: "4" },
             ].map((s) => (

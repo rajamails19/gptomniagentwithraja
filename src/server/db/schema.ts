@@ -127,6 +127,25 @@ export const toolExecutionsTable = sqliteTable("tool_executions", {
   createdAt: text("created_at").notNull(),
 });
 
+export const orchestrationContextsTable = sqliteTable("orchestration_contexts", {
+  runId: text("run_id").primaryKey(),
+  payloadJson: text("payload_json").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const agentHandoffsTable = sqliteTable("agent_handoffs", {
+  id: text("id").primaryKey(),
+  runId: text("run_id").notNull(),
+  sequence: integer("sequence").notNull(),
+  fromAgent: text("from_agent").notNull(),
+  toAgent: text("to_agent").notNull(),
+  stepId: text("step_id").notNull(),
+  message: text("message").notNull(),
+  confidence: real("confidence").notNull(),
+  latencyMs: integer("latency_ms").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
 export type RunRow = typeof runsTable.$inferSelect;
 export type WorkflowStepRow = typeof workflowStepsTable.$inferSelect;
 export type TraceEventRow = typeof traceEventsTable.$inferSelect;

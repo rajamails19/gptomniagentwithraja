@@ -66,6 +66,36 @@ export type ApiToolExecution = {
   createdAt: string;
 };
 
+export interface ApiOrchestrationContext {
+  runId: string;
+  currentStep: string;
+  currentAgent: string;
+  metadata: {
+    workflow: string;
+    status: string;
+    retryCount: number;
+    averageConfidence: number;
+    activeAgent: string;
+    stage: string;
+  };
+  artifacts: Record<string, string>;
+  toolOutputs: Record<string, unknown>;
+  memoryReferences: string[];
+}
+
+export interface ApiHandoff {
+  id: string;
+  runId: string;
+  sequence: number;
+  fromAgent: string;
+  toAgent: string;
+  stepId: string;
+  message: string;
+  confidence: number;
+  latencyMs: number;
+  createdAt: string;
+}
+
 type ApiEnvelope<T> =
   | {
       success: true;
@@ -217,4 +247,22 @@ export async function testLlm(prompt: string, options?: { model?: string; temper
     }),
   });
   return data;
+}
+
+export async function getRunContext(runId: string) {
+  const response = await requestJson<{ context: ApiOrchestrationContext }>(
+    `/api/v1/runs/${runId}/context`,
+  );
+  return response.context;
+}
+
+export async function getRunHandoffs(runId: string) {
+  const response = await requestJson<{ handoffs: ApiHandoff[] }>(`/api/v1/runs/${runId}/handoffs`);
+  return response.handoffs;
+}
+
+export async function getRunAgents(runId: string) {
+  return requestJson<{ runId: string; activeAgent: string | null; agents: unknown[] }>(
+    `/api/v1/runs/${runId}/agents`,
+  );
 }

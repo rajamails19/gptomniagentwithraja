@@ -143,6 +143,30 @@ export function runMigrations() {
 
     create index if not exists idx_tool_executions_run_created
       on tool_executions (run_id, created_at);
+
+    create table if not exists orchestration_contexts (
+      run_id text primary key,
+      payload_json text not null,
+      updated_at text not null,
+      foreign key (run_id) references runs(id) on delete cascade
+    );
+
+    create table if not exists agent_handoffs (
+      id text primary key,
+      run_id text not null,
+      sequence integer not null,
+      from_agent text not null,
+      to_agent text not null,
+      step_id text not null,
+      message text not null,
+      confidence real not null,
+      latency_ms integer not null,
+      created_at text not null,
+      foreign key (run_id) references runs(id) on delete cascade
+    );
+
+    create index if not exists idx_agent_handoffs_run_sequence
+      on agent_handoffs (run_id, sequence);
   `);
 
   migrated = true;
