@@ -53,6 +53,7 @@ Runs, workflow steps, trace events, and artifacts are persisted in a local SQLit
 Local database:
 
 - Default path: `.data/gptomniagents.sqlite`
+- Vercel temporary path: `/tmp/gptomniagents.sqlite`
 - Override path: `GPT_OMNI_SQLITE_PATH=/absolute/path/to/file.sqlite`
 - Generated SQLite files are ignored by git.
 
@@ -152,6 +153,8 @@ This repo includes `vercel.json` with:
 - Output directory: `.vercel/output`
 
 In Vercel, import the GitHub repository and keep the default install command unless you intentionally switch package managers. No required environment variables are currently defined.
+
+SQLite on Vercel uses `/tmp`, which is writable but ephemeral. This keeps the demo deployable, but durable production persistence should use PostgreSQL.
 
 Recommended Vercel settings:
 
