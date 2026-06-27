@@ -45,7 +45,7 @@ export function VisualGuide() {
     if (!open) return;
 
     const updateTarget = () => {
-      const target = document.querySelector<HTMLElement>(step.selector);
+      const target = getVisibleTarget(step);
       if (!target) {
         setTargetRect(null);
         return;
@@ -65,7 +65,7 @@ export function VisualGuide() {
       window.removeEventListener("resize", updateTarget);
       window.removeEventListener("scroll", updateTarget, true);
     };
-  }, [open, step.selector]);
+  }, [open, step]);
 
   useEffect(() => {
     if (!open) return;
@@ -222,6 +222,28 @@ function getArrowIcon(placement: VisualGuideStep["placement"]) {
   if (placement === "left") return ArrowRight;
   if (placement === "top") return ArrowDown;
   return ArrowUp;
+}
+
+function getVisibleTarget(step: VisualGuideStep) {
+  const candidates = [step.selector, step.fallbackSelector].filter(Boolean) as string[];
+
+  for (const selector of candidates) {
+    const target = document.querySelector<HTMLElement>(selector);
+    if (!target) continue;
+
+    const rect = target.getBoundingClientRect();
+    const visible =
+      rect.width > 2 &&
+      rect.height > 2 &&
+      rect.bottom > 0 &&
+      rect.right > 0 &&
+      rect.top < window.innerHeight &&
+      rect.left < window.innerWidth;
+
+    if (visible) return target;
+  }
+
+  return null;
 }
 
 function clamp(value: number, min: number, max: number) {

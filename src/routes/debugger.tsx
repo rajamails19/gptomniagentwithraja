@@ -103,7 +103,7 @@ function DebuggerPage() {
             value={effectiveExec}
             onChange={(e) => setExec(e.target.value)}
             aria-label="Select execution trace"
-            className="h-9 max-w-[60vw] rounded-lg border border-border/60 bg-white/5 px-3 text-xs transition focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/55"
+            className="h-9 w-full rounded-lg border border-border/60 bg-white/5 px-3 text-xs transition focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/55 sm:w-auto sm:max-w-[60vw]"
           >
             {executions.map((e) => (
               <option key={e.id} value={e.id} className="bg-popover">

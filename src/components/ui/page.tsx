@@ -123,7 +123,7 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:justify-between">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
           <span className="text-gradient">{title}</span>
@@ -132,7 +132,11 @@ export function PageHeader({
           <p className="mt-1.5 text-sm text-muted-foreground max-w-2xl">{description}</p>
         )}
       </div>
-      {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+      {actions && (
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }
@@ -141,7 +145,7 @@ export function Panel({ className, children }: { className?: string; children: R
   return (
     <div
       className={cn(
-        "rounded-2xl glass p-5 transition-[border-color,background,box-shadow,transform] duration-200 hover:border-white/15",
+        "rounded-2xl glass p-4 transition-[border-color,background,box-shadow,transform] duration-200 hover:border-white/15 sm:p-5",
         className,
       )}
     >

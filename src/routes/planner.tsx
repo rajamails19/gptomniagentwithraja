@@ -173,11 +173,11 @@ function PlannerPage() {
                   Est. total: ~9.0s · ~$0.41 · 5 agents
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:items-center">
                 <StatBadge tone="success">Ready to execute</StatBadge>
                 <Button
                   onClick={sendToWorkflow}
-                  className="h-9 bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0"
+                  className="h-9 w-full bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0 sm:w-auto"
                 >
                   <Send className="h-3.5 w-3.5 mr-1.5" /> Send to Workflow
                 </Button>

@@ -33,7 +33,7 @@ function AboutPage() {
         actions={
           <Button
             asChild
-            className="bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0"
+            className="w-full bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0 sm:w-auto"
           >
             <Link to="/">
               Back to Dashboard <ArrowRight className="ml-1.5 h-4 w-4" />

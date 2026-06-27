@@ -188,13 +188,13 @@ function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Hero / demo banner */}
-      <div className="relative overflow-hidden rounded-2xl glass-strong p-6 lg:p-8">
+      <div className="relative overflow-hidden rounded-2xl glass-strong p-4 sm:p-6 lg:p-8">
         <div className="absolute inset-0 grid-bg opacity-30 pointer-events-none" />
         <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-[oklch(0.7_0.22_270/0.25)] blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-[oklch(0.7_0.18_210/0.2)] blur-3xl pointer-events-none" />
         <div className="relative flex flex-col lg:flex-row lg:items-center gap-6 lg:justify-between">
           <div className="max-w-2xl">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <StatBadge tone="info">
                 <Zap className="h-3 w-3" /> Live
               </StatBadge>
@@ -207,7 +207,7 @@ function Dashboard() {
                   : "Using local deterministic scenario data"}
               </span>
             </div>
-            <h2 className="mt-3 text-2xl lg:text-3xl font-semibold tracking-tight">
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight lg:text-3xl">
               <span className="text-gradient">Design, run, debug, and monitor</span>
               <br />
               multi-agent AI workflows.
@@ -217,12 +217,12 @@ function Dashboard() {
               sub-agents, tools, memory, debugging, monitoring, and cost governance to run
               production-grade workflows.
             </p>
-            <div className="mt-5 flex flex-wrap items-center gap-2">
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
               <select
                 value={demo.selectedScenarioId}
                 onChange={(event) => demo.selectScenario(event.target.value)}
                 aria-label="Choose demo scenario"
-                className="h-10 max-w-full rounded-lg border border-border/60 bg-white/5 px-3 text-sm text-foreground transition hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/55"
+                className="h-10 w-full max-w-full rounded-lg border border-border/60 bg-white/5 px-3 text-sm text-foreground transition hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/55 sm:w-auto"
               >
                 {scenarioOptions.map((scenario) => (
                   <option key={scenario.id} value={scenario.id} className="bg-popover">
@@ -233,7 +233,7 @@ function Dashboard() {
               {demo.isRunning ? (
                 <Button
                   onClick={demo.reset}
-                  className="h-10 bg-white/5 hover:bg-white/10 border border-border/60 text-foreground"
+                  className="h-10 w-full bg-white/5 hover:bg-white/10 border border-border/60 text-foreground sm:w-auto"
                 >
                   <RotateCcw className="h-4 w-4 mr-1.5" /> Stop demo
                 </Button>
@@ -241,14 +241,14 @@ function Dashboard() {
                 <Button
                   onClick={demo.start}
                   data-guide="dashboard-run"
-                  className="h-10 px-5 bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0"
+                  className="h-10 w-full px-5 bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0 sm:w-auto"
                 >
                   <Play className="h-4 w-4 mr-1.5" /> Run Demo Workflow
                 </Button>
               )}
               <Button
                 asChild
-                className="h-10 bg-white/5 hover:bg-white/10 border border-border/60 text-foreground"
+                className="h-10 w-full bg-white/5 hover:bg-white/10 border border-border/60 text-foreground sm:w-auto"
               >
                 <Link to="/debugger">
                   <Bug className="h-4 w-4 mr-1.5" /> View in Debugger
@@ -256,18 +256,18 @@ function Dashboard() {
               </Button>
               <Button
                 asChild
-                className="h-10 bg-white/5 hover:bg-white/10 border border-border/60 text-foreground"
+                className="h-10 w-full bg-white/5 hover:bg-white/10 border border-border/60 text-foreground sm:w-auto"
               >
                 <Link to="/workflow">
                   <FileText className="h-4 w-4 mr-1.5" /> View Final Artifact
                 </Link>
               </Button>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground sm:pl-1">
                 Scenario: {demo.selectedScenario.title}
               </span>
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 lg:min-w-[420px]">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:min-w-[420px]">
             {[
               {
                 k: "Active agent",
@@ -283,7 +283,7 @@ function Dashboard() {
               { k: "Models", v: "4" },
             ].map((s) => (
               <div key={s.k} className="rounded-xl glass p-3 text-center min-w-0">
-                <div className="text-xl sm:text-2xl font-semibold">{s.v}</div>
+                <div className="truncate text-base font-semibold sm:text-2xl">{s.v}</div>
                 <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                   {s.k}
                 </div>

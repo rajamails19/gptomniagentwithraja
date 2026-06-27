@@ -10,21 +10,52 @@ import {
   FileText,
   ShieldCheck,
   Route,
+  Menu,
+  X,
+  Sparkles,
+  LayoutDashboard,
+  Workflow,
+  Bot,
+  Bug,
+  Activity,
+  BookText,
+  Brain,
+  Wrench,
+  DollarSign,
+  Settings,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useDemo } from "@/lib/demo-context";
 import { openPresentation } from "@/lib/presentation-store";
 import { openVisualGuide } from "@/lib/visual-guide-store";
+import { cn } from "@/lib/utils";
 
 const envs = ["Dev", "Stage", "Prod"] as const;
+const mobileNav = [
+  { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/planner", label: "Planner", icon: Workflow },
+  { to: "/agents", label: "Agents", icon: Bot },
+  { to: "/workflow", label: "Workflow", icon: GitBranch },
+  { to: "/debugger", label: "Debugger", icon: Bug },
+  { to: "/monitoring", label: "Monitoring", icon: Activity },
+  { to: "/prompts", label: "Prompt Library", icon: BookText },
+  { to: "/memory", label: "Memory", icon: Brain },
+  { to: "/tools", label: "Tools", icon: Wrench },
+  { to: "/cost", label: "Cost Analytics", icon: DollarSign },
+  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/about", label: "About Raja", icon: Sparkles },
+] as const;
 
 export function Topbar() {
   const [env, setEnv] = useState<(typeof envs)[number]>("Dev");
   const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const demo = useDemo();
   const lastToastEvent = useRef<string | null>(null);
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   useEffect(() => {
     const latest = demo.currentRun.traceEvents.at(-1);
@@ -58,9 +89,22 @@ export function Topbar() {
   }, [demo.currentRun.traceEvents]);
 
   return (
-    <header className="h-16 shrink-0 border-b border-border/60 bg-background/40 backdrop-blur-xl sticky top-0 z-30">
-      <div className="h-full px-3 lg:px-6 flex items-center gap-2 lg:gap-3">
-        <div className="md:hidden text-sm font-semibold tracking-tight">OmniAgents</div>
+    <header className="min-h-16 shrink-0 border-b border-border/60 bg-background/70 backdrop-blur-xl sticky top-0 z-50">
+      <div className="min-h-16 px-3 lg:px-6 flex items-center gap-2 lg:gap-3">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="grid h-9 w-9 place-items-center rounded-lg border border-border/60 bg-white/[0.04] transition hover:bg-white/[0.08] focus-visible:ring-2 focus-visible:ring-[var(--ring)]/55 md:hidden"
+          aria-label="Open navigation menu"
+        >
+          <Menu className="h-4 w-4" />
+        </button>
+
+        <div className="min-w-0 md:hidden">
+          <div className="truncate text-sm font-semibold tracking-tight">OmniAgents</div>
+          <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            NuvRajLabs
+          </div>
+        </div>
 
         <div className="relative flex-1 max-w-xl ml-2 hidden md:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -112,7 +156,7 @@ export function Topbar() {
           <Route className="h-3.5 w-3.5" /> Visual Guide
         </button>
 
-        <div className="relative">
+        <div className="relative hidden sm:block">
           <button
             onClick={() => setOpen((o) => !o)}
             className="flex items-center gap-2 h-9 px-3 rounded-lg glass text-xs font-medium transition-[background,transform] duration-200 hover:-translate-y-px hover:bg-white/[0.08] active:translate-y-0 focus-visible:ring-2 focus-visible:ring-[var(--ring)]/55"
@@ -151,9 +195,10 @@ export function Topbar() {
                 icon: <RotateCcw className="h-4 w-4 text-[var(--amber)]" />,
               });
             }}
-            className="h-9 bg-white/5 hover:bg-white/10 text-foreground border border-border/60"
+            className="h-9 bg-white/5 hover:bg-white/10 text-foreground border border-border/60 px-3"
           >
-            <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Stop
+            <RotateCcw className="h-3.5 w-3.5 sm:mr-1.5" />
+            <span className="hidden sm:inline">Stop</span>
           </Button>
         ) : (
           <Button
@@ -164,9 +209,11 @@ export function Topbar() {
                 icon: <Play className="h-4 w-4 text-[var(--electric)]" />,
               });
             }}
-            className="h-9 bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] hover:opacity-95 text-white border-0 shadow-[0_8px_24px_-12px_oklch(0.7_0.2_265/0.7)]"
+            className="h-9 bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] hover:opacity-95 text-white border-0 shadow-[0_8px_24px_-12px_oklch(0.7_0.2_265/0.7)] px-3"
           >
-            <Play className="h-3.5 w-3.5 mr-1.5" /> Run Demo
+            <Play className="h-3.5 w-3.5 sm:mr-1.5" />
+            <span className="hidden sm:inline">Run Demo</span>
+            <span className="sm:hidden">Run</span>
           </Button>
         )}
 
@@ -188,6 +235,128 @@ export function Topbar() {
           </div>
         </div>
       </div>
+      {mobileOpen && (
+        <div className="fixed inset-0 z-[80] md:hidden">
+          <button
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close navigation overlay"
+          />
+          <div className="absolute left-0 top-0 flex h-dvh w-[min(86vw,340px)] flex-col border-r border-border/60 bg-[oklch(0.14_0.03_264/0.98)] shadow-[24px_0_70px_-32px_oklch(0_0_0/0.95)] backdrop-blur-xl">
+            <div className="flex h-16 items-center justify-between border-b border-border/60 px-4">
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[var(--electric)] to-[var(--violet)] glow-primary">
+                  <Sparkles className="h-4.5 w-4.5 text-white" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold">OmniAgents</div>
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    NuvRajLabs
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setMobileOpen(false)}
+                className="grid h-9 w-9 place-items-center rounded-lg hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-[var(--ring)]/55"
+                aria-label="Close navigation menu"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 border-b border-border/60 p-3">
+              <select
+                value={demo.selectedScenarioId}
+                onChange={(event) => demo.selectScenario(event.target.value)}
+                aria-label="Choose demo scenario"
+                className="h-10 w-full rounded-lg border border-border/60 bg-white/5 px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/55"
+              >
+                {demo.scenarios.map((scenario) => (
+                  <option key={scenario.id} value={scenario.id} className="bg-popover">
+                    {scenario.title}
+                  </option>
+                ))}
+              </select>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={() => {
+                    demo.start();
+                    setMobileOpen(false);
+                  }}
+                  className="h-10 bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0"
+                >
+                  <Play className="h-3.5 w-3.5 mr-1.5" />
+                  Run Demo
+                </Button>
+                <button
+                  onClick={() => {
+                    openVisualGuide();
+                    setMobileOpen(false);
+                  }}
+                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-[var(--amber)]/25 bg-[var(--amber)]/10 px-3 text-xs font-semibold text-[var(--amber)]"
+                >
+                  <Route className="h-3.5 w-3.5" />
+                  Guide
+                </button>
+              </div>
+              <button
+                onClick={() => {
+                  openPresentation();
+                  setMobileOpen(false);
+                }}
+                className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-white/[0.04] px-3 text-xs font-medium"
+              >
+                <Presentation className="h-3.5 w-3.5" />
+                Presentation Mode
+              </button>
+            </div>
+
+            <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+              {mobileNav.map((item) => {
+                const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition focus-visible:ring-2 focus-visible:ring-[var(--ring)]/55",
+                      active
+                        ? "bg-gradient-to-r from-[oklch(0.72_0.18_250/0.18)] to-[oklch(0.68_0.22_295/0.12)] text-foreground"
+                        : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
+                    )}
+                  >
+                    <Icon
+                      className={cn("h-4 w-4", active ? "text-[var(--electric)]" : "text-inherit")}
+                    />
+                    <span className="font-medium">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <Link
+              to="/about"
+              onClick={() => setMobileOpen(false)}
+              className="mx-3 mb-3 flex items-center gap-3 rounded-xl border border-[var(--electric)]/20 bg-white/[0.035] p-3"
+            >
+              <img
+                src="/Raja.jpg"
+                alt="Raja"
+                className="h-12 w-12 rounded-full border border-[var(--electric)] object-cover object-[50%_10%]"
+              />
+              <div className="min-w-0">
+                <div className="text-sm font-semibold">Raja</div>
+                <div className="text-xs font-semibold text-[var(--amber)]">AI Agent Builder</div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--electric)]">
+                  @NUVRAJLABS
+                </div>
+              </div>
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

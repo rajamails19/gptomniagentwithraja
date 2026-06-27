@@ -15,6 +15,7 @@ export interface VisualGuideStep {
   body: string;
   route: VisualGuideRoute;
   selector: string;
+  fallbackSelector?: string;
   placement: "top" | "right" | "bottom" | "left";
   autoStartDemo?: boolean;
 }
@@ -51,6 +52,7 @@ export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
     body: "Debugger shows prompts, models, memory, tool calls, retries, latency, cost, and output evidence.",
     route: "/debugger",
     selector: '[data-guide="nav-debugger"]',
+    fallbackSelector: "main h1",
     placement: "right",
   },
   {
@@ -59,6 +61,7 @@ export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
     body: "This is where investors see tokens, spend, workflow cost, and operating discipline.",
     route: "/cost",
     selector: '[data-guide="nav-cost"]',
+    fallbackSelector: "main h1",
     placement: "right",
   },
   {
@@ -67,6 +70,7 @@ export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
     body: "Each agent has a role, tools, model access, memory, reliability, and current status.",
     route: "/agents",
     selector: '[data-guide="nav-agents"]',
+    fallbackSelector: "main h1",
     placement: "right",
   },
   {
@@ -75,6 +79,7 @@ export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
     body: "This is the safety layer: agents can call only registered local or MCP-ready tools.",
     route: "/tools",
     selector: '[data-guide="nav-tools"]',
+    fallbackSelector: "main h1",
     placement: "right",
   },
   {
@@ -83,6 +88,7 @@ export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
     body: "The planner turns a business goal into ordered tasks and agent handoffs.",
     route: "/planner",
     selector: '[data-guide="nav-planner"]',
+    fallbackSelector: "main h1",
     placement: "right",
   },
   {
@@ -91,6 +97,7 @@ export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
     body: "Prompt Library makes AI behavior reusable, reviewable, and versioned.",
     route: "/prompts",
     selector: '[data-guide="nav-prompts"]',
+    fallbackSelector: "main h1",
     placement: "right",
   },
   {
@@ -99,6 +106,7 @@ export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
     body: "This makes Raja and NuvRajLabs visible as the builder behind the product.",
     route: "/about",
     selector: '[data-guide="about-founder"]',
+    fallbackSelector: "main h1",
     placement: "right",
   },
 ];

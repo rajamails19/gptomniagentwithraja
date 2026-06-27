@@ -137,7 +137,7 @@ function RootComponent() {
           <Sidebar />
           <div className="flex-1 flex flex-col min-w-0">
             <Topbar />
-            <main className="flex-1 p-4 lg:p-6 min-w-0">
+            <main className="flex-1 p-3 sm:p-4 lg:p-6 min-w-0">
               <Outlet />
             </main>
             <footer className="h-10 shrink-0 bg-black/70 border-t border-border/60 px-4 lg:px-6 flex items-center justify-end text-[11px] text-muted-foreground">

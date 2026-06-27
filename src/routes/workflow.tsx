@@ -143,7 +143,7 @@ function WorkflowPage() {
         title="Workflow Canvas"
         description="Follow the investor demo from user request to reviewed final artifact."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
             <Button
               data-guide="workflow-run"
               onClick={() => {
@@ -151,7 +151,7 @@ function WorkflowPage() {
                 demo.start();
               }}
               disabled={demo.isRunning}
-              className="bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0 shadow-[0_10px_30px_-16px_oklch(0.72_0.2_250/0.9)]"
+              className="w-full bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0 shadow-[0_10px_30px_-16px_oklch(0.72_0.2_250/0.9)] sm:w-auto"
             >
               <Play className="h-3.5 w-3.5 mr-1.5" />{" "}
               {demo.isComplete ? "Run Demo Again" : "Run Demo Workflow"}
@@ -163,6 +163,7 @@ function WorkflowPage() {
                 demo.start();
               }}
               disabled={demo.isRunning}
+              className="w-full sm:w-auto"
             >
               <Rewind className="h-3.5 w-3.5 mr-1.5" /> Replay
             </Button>
@@ -173,16 +174,17 @@ function WorkflowPage() {
                 setActiveId("planner");
                 demo.reset();
               }}
+              className="w-full sm:w-auto"
             >
               <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset
             </Button>
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="w-full sm:w-auto">
               <Link to="/debugger">
                 <Bug className="h-3.5 w-3.5 mr-1.5" /> View in Debugger
               </Link>
             </Button>
             {demo.isComplete && (
-              <Button onClick={() => setShowOutput((v) => !v)}>
+              <Button onClick={() => setShowOutput((v) => !v)} className="w-full sm:w-auto">
                 <FileText className="h-3.5 w-3.5 mr-1.5" />{" "}
                 {showOutput ? "Hide Artifact" : "View Final Artifact"}
               </Button>

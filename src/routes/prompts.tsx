@@ -71,7 +71,7 @@ function PromptsPage() {
                 {p.category} · {p.version} · score {p.score}
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto">
               <Button variant="outline" size="sm">
                 <GitCompare className="h-3.5 w-3.5 mr-1.5" /> Compare versions
               </Button>
