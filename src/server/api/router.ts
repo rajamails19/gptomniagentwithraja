@@ -1,7 +1,9 @@
 import type { ApiRoute, RouteParams } from "../types/api";
 import { jsonError } from "../utils/http";
 import { createRequestId, recordRequestLog } from "../utils/logger";
-import { methodNotAllowed, routeNotFound } from "../utils/errors";
+import { methodNotAllowed, rateLimited, routeNotFound } from "../utils/errors";
+import { isDeveloperAccessAllowed, isDeveloperApiPath } from "../utils/developer-access";
+import { applyRateLimitHeaders, checkRateLimit } from "../utils/rate-limit";
 import { apiRoutes } from "./routes";
 
 type RouteMatch = {
@@ -18,8 +20,19 @@ export async function handleApiRequest(request: Request): Promise<Response | nul
   let response: Response;
   let errorCode: string | undefined;
   let errorMessage: string | undefined;
+  const rateLimit = checkRateLimit(request, url.pathname);
 
   try {
+    if (!rateLimit.allowed) {
+      throw rateLimited("Too many API requests. Please wait and try again.", {
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      });
+    }
+
+    if (isDeveloperApiPath(url.pathname) && !isDeveloperAccessAllowed(request, url)) {
+      throw routeNotFound();
+    }
+
     const match = matchRoute(request.method, url.pathname);
     if (!match) throw routeNotFound();
     if (match === "method-not-allowed") throw methodNotAllowed();
@@ -52,6 +65,7 @@ export async function handleApiRequest(request: Request): Promise<Response | nul
   });
 
   response.headers.set("x-request-id", requestId);
+  applyRateLimitHeaders(response, rateLimit);
   return response;
 }
 

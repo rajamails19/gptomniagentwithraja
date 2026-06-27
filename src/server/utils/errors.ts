@@ -26,6 +26,10 @@ export function methodNotAllowed(message = "Method not allowed") {
   return new ApiError(405, "METHOD_NOT_ALLOWED", message);
 }
 
+export function rateLimited(message = "Too many requests", details?: unknown) {
+  return new ApiError(429, "RATE_LIMITED", message, details);
+}
+
 export function providerUnavailable(message = "LLM provider unavailable", details?: unknown) {
   return new ApiError(503, "PROVIDER_UNAVAILABLE", message, details);
 }

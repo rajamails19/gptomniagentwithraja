@@ -94,7 +94,40 @@ export class MockMCPTransport implements MCPTransport {
   }
 }
 
+class StubbedMCPTransport implements MCPTransport {
+  constructor(private readonly kind: "stdio" | "http" | "sse") {}
+
+  async connect(server: MCPServerConfig) {
+    validateStubConfig(this.kind, server);
+    throw new Error(
+      `${this.kind} MCP transport is configured but execution is stubbed. No external process or network call was attempted.`,
+    );
+  }
+
+  async disconnect() {}
+
+  async discoverTools(): Promise<MCPToolDefinition[]> {
+    return [];
+  }
+
+  async executeTool(): Promise<MCPExecuteResult> {
+    throw new Error(`${this.kind} MCP transport execution is stubbed until explicitly enabled.`);
+  }
+}
+
+function validateStubConfig(kind: "stdio" | "http" | "sse", server: MCPServerConfig) {
+  if (kind === "stdio" && !server.command) {
+    throw new Error("stdio MCP server is missing command.");
+  }
+  if ((kind === "http" || kind === "sse") && !server.url && !server.endpoint) {
+    throw new Error(`${kind} MCP server is missing url.`);
+  }
+}
+
 export function createTransport(kind: MCPServerConfig["transport"]): MCPTransport {
   if (kind === "mock") return new MockMCPTransport();
+  if (kind === "stdio") return new StubbedMCPTransport("stdio");
+  if (kind === "http") return new StubbedMCPTransport("http");
+  if (kind === "sse") return new StubbedMCPTransport("sse");
   return new MockMCPTransport();
 }

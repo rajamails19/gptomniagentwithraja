@@ -47,6 +47,9 @@ const toolExecutionsResponseSchema = z.object({
 
 const mcpOverviewResponseSchema = z.object({
   status: z.string(),
+  configSource: z.enum(["env", "file", "fallback"]),
+  validationStatus: z.enum(["valid", "invalid"]),
+  configErrors: z.array(z.object({ serverId: z.string().optional(), message: z.string() })),
   connectedServers: z.number(),
   availableTools: z.number(),
   servers: z.array(z.unknown()),

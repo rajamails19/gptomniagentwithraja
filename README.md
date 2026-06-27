@@ -87,6 +87,17 @@ LLM provider configuration:
 
 All LLM access goes through `src/server/llm/`. The frontend never calls provider APIs directly. The API Documentation Generation workflow attempts a real LLM artifact generation at completion; if the provider is missing or unavailable, it falls back to the deterministic demo artifact and records the fallback in execution logs.
 
+Demo safety controls:
+
+- Basic API rate limiting is enabled in memory for all `/api/*` routes.
+- `API_RATE_LIMIT_MAX` controls requests per bucket. Default: `120`.
+- `API_RATE_LIMIT_WINDOW_MS` controls the window. Default: `60000`.
+- Developer endpoints under `/api/v1/developer/*` are protected by `DEVELOPER_API_TOKEN` in production.
+- The `/developer/api` page is also protected by `DEVELOPER_API_TOKEN` in production.
+- To open the developer page, visit `/developer/api?token=<DEVELOPER_API_TOKEN>`. A session cookie is set after a successful token check.
+- For curl access to developer endpoints, pass `x-developer-token: <DEVELOPER_API_TOKEN>`.
+- In local development, if `DEVELOPER_API_TOKEN` is not set, the developer page remains available.
+
 Tool execution framework:
 
 - Tools live under `src/server/tools/`.
@@ -95,6 +106,69 @@ Tool execution framework:
 - Tool executions are logged to SQLite with run ID, trace event ID, input/output summaries, status, duration, error, and timestamp.
 - Initial safe local tools: `openapi-inspector`, `markdown-generator`, `risk-scanner`, `cost-estimator`, and `trace-summarizer`.
 - To add a tool, implement `BaseTool`, register it in `ToolRegistry`, and keep inputs/outputs non-dangerous and schema-validated.
+
+MCP configuration:
+
+- MCP support lives under `src/server/mcp/`.
+- MCP tools are discovered server-side and merged into the same tool registry as local tools.
+- Config loading order is `MCP_SERVERS_JSON`, then optional `mcp.config.json`, then fallback mock servers.
+- Invalid config does not crash the app. The server records config errors, keeps the app running, and falls back to mock MCP servers.
+- Supported config fields: `id`, `name`, `description`, `enabled`, `transport`, `command`, `args`, `url`, `endpoint`, and `timeoutMs`.
+- Supported transports are `mock`, `stdio`, `http`, and `sse`.
+- Current limitation: `stdio`, `http`, and `sse` transports are validation stubs only. They do not spawn processes or make network calls yet. Mock MCP remains available by default.
+
+`MCP_SERVERS_JSON` example:
+
+```sh
+MCP_SERVERS_JSON='{"servers":[{"id":"filesystem-mcp","name":"Filesystem MCP","description":"Local mock OpenAPI catalog","enabled":true,"transport":"mock","timeoutMs":5000}]}'
+```
+
+`mcp.config.json` example:
+
+```json
+{
+  "servers": [
+    {
+      "id": "filesystem-mcp",
+      "name": "Filesystem MCP",
+      "description": "Local mock OpenAPI catalog",
+      "enabled": true,
+      "transport": "mock",
+      "timeoutMs": 5000
+    }
+  ]
+}
+```
+
+Future GitHub MCP config example:
+
+```json
+{
+  "id": "github-mcp",
+  "name": "GitHub MCP",
+  "description": "Repository context and pull request tools",
+  "enabled": false,
+  "transport": "stdio",
+  "command": "github-mcp-server",
+  "args": ["--repo", "owner/repo"],
+  "timeoutMs": 10000
+}
+```
+
+Future Postgres MCP config example:
+
+```json
+{
+  "id": "postgres-mcp",
+  "name": "Postgres MCP",
+  "description": "Read-only database inspection tools",
+  "enabled": false,
+  "transport": "stdio",
+  "command": "postgres-mcp-server",
+  "args": ["--read-only"],
+  "timeoutMs": 10000
+}
+```
 
 Available endpoints:
 
@@ -115,6 +189,11 @@ Available endpoints:
 - `GET /api/v1/tools`
 - `GET /api/v1/tools/:id`
 - `POST /api/v1/tools/:id/execute`
+- `GET /api/v1/mcp`
+- `GET /api/v1/mcp/servers`
+- `GET /api/v1/mcp/tools`
+- `POST /api/v1/mcp/connect`
+- `POST /api/v1/mcp/disconnect`
 - `GET /api/v1/settings`
 - `GET /api/v1/developer/routes`
 - `GET /api/v1/developer/logs`
@@ -132,6 +211,12 @@ curl -X POST http://localhost:8087/api/v1/llm/test \
   -d '{"prompt":"Write one sentence about API documentation."}'
 curl http://localhost:8087/api/v1/scenarios
 curl http://localhost:8087/api/v1/tools
+curl http://localhost:8087/api/v1/mcp
+curl http://localhost:8087/api/v1/mcp/servers
+curl http://localhost:8087/api/v1/mcp/tools
+curl -X POST http://localhost:8087/api/v1/tools/mcp.filesystem.openapi-catalog/execute \
+  -H "content-type: application/json" \
+  -d '{"input":{"service":"payments"}}'
 curl -X POST http://localhost:8087/api/v1/tools/openapi-inspector/execute \
   -H "content-type: application/json" \
   -d '{"input":{"endpoints":[{"method":"GET","path":"/health","summary":"Health check"}]}}'

@@ -1,57 +1,41 @@
+import { loadMcpConfig } from "./MCPConfig";
 import { mcpClient } from "./MCPClient";
 import type { MCPCallLog, MCPServerConfig, MCPServerConnection, MCPToolDefinition } from "./types";
 
-const DEFAULT_SERVERS: MCPServerConfig[] = [
-  {
-    id: "local-mcp",
-    name: "Local MCP",
-    description: "Local deterministic MCP provider for orchestration context.",
-    transport: "mock",
-    enabled: true,
-  },
-  {
-    id: "filesystem-mcp",
-    name: "Filesystem MCP",
-    description: "Mock filesystem-style MCP provider exposing API catalogs.",
-    transport: "mock",
-    enabled: true,
-  },
-  {
-    id: "github-mcp",
-    name: "GitHub MCP",
-    description: "Future GitHub MCP integration placeholder.",
-    transport: "stdio",
-    enabled: false,
-  },
-  {
-    id: "postgres-mcp",
-    name: "Postgres MCP",
-    description: "Future Postgres MCP integration placeholder.",
-    transport: "stdio",
-    enabled: false,
-  },
-  {
-    id: "slack-mcp",
-    name: "Slack MCP",
-    description: "Future Slack MCP integration placeholder.",
-    transport: "sse",
-    enabled: false,
-  },
-];
-
 export class MCPRegistry {
+  private readonly config = loadMcpConfig();
   private servers = new Map<string, MCPServerConfig>(
-    DEFAULT_SERVERS.map((server) => [server.id, server]),
+    this.config.servers.map((server) => [server.id, server]),
   );
   private connections = new Map<string, MCPServerConnection>();
   private tools = new Map<string, MCPToolDefinition>();
   private calls: MCPCallLog[] = [];
 
   async initialize() {
+    this.config.errors.forEach((error) => {
+      this.logCall({
+        serverId: error.serverId ?? "mcp-config",
+        toolId: "configuration",
+        requestSummary: this.config.source,
+        responseSummary: "",
+        status: "error",
+        latencyMs: 0,
+        error: error.message,
+      });
+    });
+
     for (const server of this.servers.values()) {
       if (server.enabled) await this.connect(server.id);
       else this.setDisconnected(server);
     }
+  }
+
+  getConfigStatus() {
+    return {
+      configSource: this.config.source,
+      validationStatus: this.config.validationStatus,
+      configErrors: this.config.errors,
+    };
   }
 
   listServers() {
@@ -80,19 +64,32 @@ export class MCPRegistry {
   async connect(id: string) {
     const server = this.servers.get(id);
     if (!server) throw new Error(`MCP server not found: ${id}`);
-    await mcpClient.connect(server);
-    const tools = await mcpClient.discoverTools(server);
-    tools.forEach((tool) => this.tools.set(tool.id, tool));
-    this.connections.set(id, {
-      id: server.id,
-      name: server.name,
-      description: server.description,
-      transport: server.transport,
-      status: "connected",
-      health: "healthy",
-      toolCount: tools.length,
-      lastConnectedAt: new Date().toISOString(),
-    });
+    try {
+      await mcpClient.connect(server);
+      const tools = await mcpClient.discoverTools(server);
+      tools.forEach((tool) => this.tools.set(tool.id, tool));
+      this.connections.set(
+        id,
+        this.toConnection(server, {
+          status: "connected",
+          health: "healthy",
+          toolCount: tools.length,
+          lastConnectedAt: new Date().toISOString(),
+        }),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "MCP connection failed";
+      this.setError(server, message);
+      this.logCall({
+        serverId: server.id,
+        toolId: "connection",
+        requestSummary: server.transport,
+        responseSummary: "",
+        status: "error",
+        latencyMs: 0,
+        error: message,
+      });
+    }
     return this.connections.get(id)!;
   }
 
@@ -145,16 +142,49 @@ export class MCPRegistry {
   }
 
   private setDisconnected(server: MCPServerConfig) {
-    this.connections.set(server.id, {
+    this.connections.set(
+      server.id,
+      this.toConnection(server, {
+        status: "disconnected",
+        health: "offline",
+        toolCount: 0,
+        lastConnectedAt: null,
+      }),
+    );
+  }
+
+  private setError(server: MCPServerConfig, error: string) {
+    Array.from(this.tools.values())
+      .filter((tool) => tool.serverId === server.id)
+      .forEach((tool) => this.tools.delete(tool.id));
+
+    this.connections.set(
+      server.id,
+      this.toConnection(server, {
+        status: "error",
+        health: "degraded",
+        toolCount: 0,
+        lastConnectedAt: null,
+        error,
+      }),
+    );
+  }
+
+  private toConnection(
+    server: MCPServerConfig,
+    state: Pick<MCPServerConnection, "status" | "health" | "toolCount" | "lastConnectedAt"> &
+      Partial<Pick<MCPServerConnection, "error">>,
+  ): MCPServerConnection {
+    return {
       id: server.id,
       name: server.name,
       description: server.description,
       transport: server.transport,
-      status: "disconnected",
-      health: "offline",
-      toolCount: 0,
-      lastConnectedAt: null,
-    });
+      timeoutMs: server.timeoutMs,
+      configSource: this.config.source,
+      validationStatus: this.config.validationStatus,
+      ...state,
+    };
   }
 
   private logCall(call: Omit<MCPCallLog, "id" | "createdAt">) {

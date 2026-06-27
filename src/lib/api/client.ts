@@ -66,6 +66,9 @@ export type ApiMCPServer = {
   health: "healthy" | "offline" | "degraded";
   toolCount: number;
   lastConnectedAt: string | null;
+  timeoutMs?: number;
+  configSource?: "env" | "file" | "fallback";
+  validationStatus?: "valid" | "invalid";
   error?: string;
 };
 
@@ -92,6 +95,9 @@ export type ApiMCPCall = {
 
 export type ApiMCPOverview = {
   status: string;
+  configSource: "env" | "file" | "fallback";
+  validationStatus: "valid" | "invalid";
+  configErrors: Array<{ serverId?: string; message: string }>;
   connectedServers: number;
   availableTools: number;
   servers: ApiMCPServer[];
@@ -179,6 +185,29 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return payload.data;
 }
 
+export const developerTokenStorageKey = "omniagents.developerToken";
+
+export function saveDeveloperToken(token: string) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(developerTokenStorageKey, token);
+}
+
+export function getDeveloperToken() {
+  if (typeof window === "undefined") return "";
+  return window.sessionStorage.getItem(developerTokenStorageKey) ?? "";
+}
+
+function developerRequestInit(init?: RequestInit): RequestInit {
+  const token = getDeveloperToken();
+  return {
+    ...init,
+    headers: {
+      ...(init?.headers ?? {}),
+      ...(token ? { "x-developer-token": token } : {}),
+    },
+  };
+}
+
 export async function getHealth() {
   return requestJson<ApiHealth>("/api/v1/health");
 }
@@ -247,17 +276,26 @@ export async function getRunArtifact(id: string) {
 }
 
 export async function getApiRoutes() {
-  const data = await requestJson<{ routes: RegisteredApiRoute[] }>("/api/v1/developer/routes");
+  const data = await requestJson<{ routes: RegisteredApiRoute[] }>(
+    "/api/v1/developer/routes",
+    developerRequestInit(),
+  );
   return data.routes;
 }
 
 export async function getApiLogs() {
-  const data = await requestJson<{ logs: ApiRequestLog[] }>("/api/v1/developer/logs");
+  const data = await requestJson<{ logs: ApiRequestLog[] }>(
+    "/api/v1/developer/logs",
+    developerRequestInit(),
+  );
   return data.logs;
 }
 
 export async function getExecutionLogs() {
-  const data = await requestJson<{ logs: unknown[] }>("/api/v1/developer/execution-logs");
+  const data = await requestJson<{ logs: unknown[] }>(
+    "/api/v1/developer/execution-logs",
+    developerRequestInit(),
+  );
   return data.logs;
 }
 
@@ -269,6 +307,7 @@ export async function getTools() {
 export async function getToolExecutions() {
   const data = await requestJson<{ executions: ApiToolExecution[] }>(
     "/api/v1/developer/tool-executions",
+    developerRequestInit(),
   );
   return data.executions;
 }

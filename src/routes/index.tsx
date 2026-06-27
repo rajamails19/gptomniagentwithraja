@@ -399,6 +399,18 @@ function Dashboard() {
             <div className="mt-1 text-sm font-semibold">{mcpOverview?.recentCalls.length ?? 0}</div>
           </div>
         </div>
+        <div className="mt-3 flex flex-col gap-2 rounded-xl border border-border/60 bg-white/[0.03] p-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            Config: {mcpOverview?.configSource ?? "loading"} ·{" "}
+            {mcpOverview?.validationStatus ?? "checking"}
+          </span>
+          {(mcpOverview?.configErrors.length ?? 0) > 0 && (
+            <span className="text-[var(--destructive)]">
+              {mcpOverview?.configErrors.length} config issue
+              {mcpOverview?.configErrors.length === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
       </Panel>
 
       {/* KPI grid */}

@@ -3,6 +3,13 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { handleApiRequest } from "./server/api/router";
+import {
+  developerAccessNotFoundResponse,
+  isDeveloperAccessAllowed,
+  isDeveloperPagePath,
+  setDeveloperAccessCookie,
+  shouldSetDeveloperAccessCookie,
+} from "./server/utils/developer-access";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -41,12 +48,27 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const url = new URL(request.url);
+      if (isDeveloperPagePath(url.pathname) && !isDeveloperAccessAllowed(request, url)) {
+        return developerAccessNotFoundResponse();
+      }
+
       const apiResponse = await handleApiRequest(request);
       if (apiResponse) return apiResponse;
 
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const normalizedResponse = await normalizeCatastrophicSsrResponse(response);
+      if (isDeveloperPagePath(url.pathname) && shouldSetDeveloperAccessCookie(url)) {
+        const responseWithCookie = new Response(normalizedResponse.body, {
+          status: normalizedResponse.status,
+          statusText: normalizedResponse.statusText,
+          headers: new Headers(normalizedResponse.headers),
+        });
+        setDeveloperAccessCookie(responseWithCookie, url);
+        return responseWithCookie;
+      }
+      return normalizedResponse;
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {

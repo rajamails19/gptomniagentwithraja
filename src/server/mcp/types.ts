@@ -9,7 +9,11 @@ export interface MCPServerConfig {
   description: string;
   transport: MCPTransportKind;
   enabled: boolean;
+  command?: string;
+  args?: string[];
+  url?: string;
   endpoint?: string;
+  timeoutMs?: number;
 }
 
 export interface MCPToolDefinition {
@@ -30,6 +34,9 @@ export interface MCPServerConnection {
   health: "healthy" | "offline" | "degraded";
   toolCount: number;
   lastConnectedAt: string | null;
+  timeoutMs?: number;
+  configSource?: "env" | "file" | "fallback";
+  validationStatus?: "valid" | "invalid";
   error?: string;
 }
 

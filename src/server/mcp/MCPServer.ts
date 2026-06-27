@@ -19,6 +19,7 @@ export class MCPServerFacade {
       status: servers.some((server) => server.status === "connected")
         ? "connected"
         : "disconnected",
+      ...mcpRegistry.getConfigStatus(),
       connectedServers: servers.filter((server) => server.status === "connected").length,
       availableTools: tools.length,
       servers,

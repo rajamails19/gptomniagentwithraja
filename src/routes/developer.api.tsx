@@ -12,6 +12,8 @@ import {
   getRuns,
   getToolExecutions,
   getTools,
+  getDeveloperToken,
+  saveDeveloperToken,
   type ApiHealth,
   type ApiMCPOverview,
   type ApiRequestLog,
@@ -40,6 +42,7 @@ const sampleRequests = [
 ];
 
 function DeveloperApiPage() {
+  const [developerToken, setDeveloperToken] = useState("");
   const [health, setHealth] = useState<ApiHealth | null>(null);
   const [routes, setRoutes] = useState<RegisteredApiRoute[]>([]);
   const [logs, setLogs] = useState<ApiRequestLog[]>([]);
@@ -49,6 +52,16 @@ function DeveloperApiPage() {
   const [toolExecutions, setToolExecutions] = useState<ApiToolExecution[]>([]);
   const [mcpOverview, setMcpOverview] = useState<ApiMCPOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const urlToken = new URLSearchParams(window.location.search).get("token");
+    const storedToken = getDeveloperToken();
+    const nextToken = urlToken ?? storedToken;
+    if (nextToken) {
+      saveDeveloperToken(nextToken);
+      setDeveloperToken(nextToken);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -96,7 +109,7 @@ function DeveloperApiPage() {
       active = false;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [developerToken]);
 
   const sampleResponse = useMemo(
     () => ({
@@ -126,6 +139,43 @@ function DeveloperApiPage() {
           />
         }
       />
+
+      <Panel>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="text-sm font-semibold">Developer access</div>
+            <div className="text-xs text-muted-foreground">
+              Protected in production with `DEVELOPER_API_TOKEN`. Open with
+              `/developer/api?token=...` or enter the token here for this browser session.
+            </div>
+          </div>
+          <form
+            className="flex w-full gap-2 md:w-auto"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const formData = new FormData(event.currentTarget);
+              const token = String(formData.get("developerToken") ?? "").trim();
+              if (!token) return;
+              saveDeveloperToken(token);
+              setDeveloperToken(token);
+            }}
+          >
+            <input
+              name="developerToken"
+              type="password"
+              aria-label="Developer API token"
+              placeholder="Developer token"
+              className="h-9 min-w-0 rounded-md border border-border/70 bg-background px-3 text-xs text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/25 md:w-56"
+            />
+            <button
+              type="submit"
+              className="h-9 rounded-md border border-border/70 bg-white/[0.05] px-3 text-xs font-medium text-foreground transition hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              Unlock
+            </button>
+          </form>
+        </div>
+      </Panel>
 
       {error && (
         <Panel className="border-destructive/30 bg-destructive/5">
@@ -256,6 +306,31 @@ function DeveloperApiPage() {
             <Server className="h-4 w-4 text-[var(--cyan)]" />
             MCP servers
           </div>
+          <div className="mt-4 rounded-lg border border-border/60 bg-white/[0.03] p-3 text-xs">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Config source</span>
+              <span className="font-mono text-foreground">
+                {mcpOverview?.configSource ?? "loading"}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Validation</span>
+              <StatusBadge
+                status={mcpOverview?.validationStatus === "invalid" ? "error" : "success"}
+                label={mcpOverview?.validationStatus ?? "checking"}
+              />
+            </div>
+            {(mcpOverview?.configErrors.length ?? 0) > 0 && (
+              <div className="mt-3 space-y-1 text-[11px] text-[var(--destructive)]">
+                {mcpOverview?.configErrors.map((error, index) => (
+                  <div key={`${error.serverId ?? "config"}-${index}`}>
+                    {error.serverId ? `${error.serverId}: ` : ""}
+                    {error.message}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="mt-4 space-y-2">
             {(mcpOverview?.servers ?? []).map((server) => (
               <div
@@ -271,8 +346,13 @@ function DeveloperApiPage() {
                 </div>
                 <div className="mt-1 font-medium">{server.name}</div>
                 <div className="mt-1 text-muted-foreground">
-                  {server.toolCount} tools · {server.transport}
+                  {server.toolCount} tools · {server.transport} · {server.timeoutMs ?? 0}ms
                 </div>
+                {server.error && (
+                  <div className="mt-2 rounded-md border border-destructive/25 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
+                    {server.error}
+                  </div>
+                )}
               </div>
             ))}
           </div>
