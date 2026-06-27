@@ -114,6 +114,19 @@ export const llmLogsTable = sqliteTable("llm_logs", {
   createdAt: text("created_at").notNull(),
 });
 
+export const toolExecutionsTable = sqliteTable("tool_executions", {
+  id: text("id").primaryKey(),
+  runId: text("run_id"),
+  traceEventId: text("trace_event_id"),
+  toolId: text("tool_id").notNull(),
+  inputSummary: text("input_summary").notNull(),
+  outputSummary: text("output_summary").notNull(),
+  status: text("status", { enum: ["success", "error"] }).notNull(),
+  durationMs: integer("duration_ms").notNull(),
+  error: text("error"),
+  createdAt: text("created_at").notNull(),
+});
+
 export type RunRow = typeof runsTable.$inferSelect;
 export type WorkflowStepRow = typeof workflowStepsTable.$inferSelect;
 export type TraceEventRow = typeof traceEventsTable.$inferSelect;

@@ -11,7 +11,7 @@ export class HealthService {
     const llmConfig = llmService.getConfiguration();
     return {
       ok: true,
-      service: "GPT Omni Agents API",
+      service: "OmniAgents API",
       version: "v1",
       mode: "database",
       scenarioCount: DEMO_SCENARIOS.length,

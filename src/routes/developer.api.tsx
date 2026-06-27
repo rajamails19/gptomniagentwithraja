@@ -9,14 +9,18 @@ import {
   getExecutionLogs,
   getHealth,
   getRuns,
+  getToolExecutions,
+  getTools,
   type ApiHealth,
   type ApiRequestLog,
+  type ApiToolExecution,
+  type ApiToolSummary,
   type RegisteredApiRoute,
 } from "@/lib/api/client";
 import type { ApiRun } from "@/lib/api/schemas";
 
 export const Route = createFileRoute("/developer/api")({
-  head: () => ({ meta: [{ title: "API Explorer — GPT Omni Agents" }] }),
+  head: () => ({ meta: [{ title: "API Explorer — OmniAgents" }] }),
   component: DeveloperApiPage,
 });
 
@@ -28,6 +32,7 @@ const sampleRequests = [
   "curl -X POST http://localhost:8080/api/v1/runs/{id}/start",
   "curl http://localhost:8080/api/v1/runs/{id}/status",
   "curl -X POST http://localhost:8080/api/v1/runs/{id}/replay",
+  'curl -X POST http://localhost:8080/api/v1/tools/openapi-inspector/execute -H "content-type: application/json" -d \'{"input":{"endpoints":[{"method":"GET","path":"/health","summary":"Health check"}]}}\'',
   "curl http://localhost:8080/api/v1/runs/exec_pr_104/trace",
   "curl http://localhost:8080/api/v1/runs/exec_pr_104/artifact",
 ];
@@ -38,6 +43,8 @@ function DeveloperApiPage() {
   const [logs, setLogs] = useState<ApiRequestLog[]>([]);
   const [runs, setRuns] = useState<ApiRun[]>([]);
   const [executionLogs, setExecutionLogs] = useState<unknown[]>([]);
+  const [tools, setTools] = useState<ApiToolSummary[]>([]);
+  const [toolExecutions, setToolExecutions] = useState<ApiToolExecution[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -45,12 +52,22 @@ function DeveloperApiPage() {
 
     async function loadApiExplorer() {
       try {
-        const [nextHealth, nextRoutes, nextLogs, nextRuns, nextExecutionLogs] = await Promise.all([
+        const [
+          nextHealth,
+          nextRoutes,
+          nextLogs,
+          nextRuns,
+          nextExecutionLogs,
+          nextTools,
+          nextToolExecutions,
+        ] = await Promise.all([
           getHealth(),
           getApiRoutes(),
           getApiLogs(),
           getRuns(),
           getExecutionLogs(),
+          getTools(),
+          getToolExecutions(),
         ]);
         if (!active) return;
         setHealth(nextHealth);
@@ -58,6 +75,8 @@ function DeveloperApiPage() {
         setLogs(nextLogs);
         setRuns(nextRuns);
         setExecutionLogs(nextExecutionLogs);
+        setTools(nextTools);
+        setToolExecutions(nextToolExecutions);
         setError(null);
       } catch (apiError) {
         if (!active) return;
@@ -78,7 +97,7 @@ function DeveloperApiPage() {
       success: true,
       data: health ?? {
         ok: true,
-        service: "GPT Omni Agents API",
+        service: "OmniAgents API",
         version: "v1",
         mode: "in-memory",
       },
@@ -221,6 +240,40 @@ function DeveloperApiPage() {
           </div>
           <pre className="mt-4 max-h-[420px] overflow-auto rounded-lg border border-border/60 bg-black/20 p-3 text-[11px] text-muted-foreground">
             {JSON.stringify(sampleResponse, null, 2)}
+          </pre>
+        </Panel>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <Panel>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <ClipboardList className="h-4 w-4 text-[var(--emerald)]" />
+            Registered tools
+          </div>
+          <div className="mt-4 space-y-2">
+            {tools.map((tool) => (
+              <div
+                key={tool.id}
+                className="rounded-lg border border-border/60 bg-white/[0.03] p-3 text-xs"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-mono text-foreground">{tool.id}</span>
+                  <StatBadge tone="info">{tool.category}</StatBadge>
+                </div>
+                <div className="mt-1 font-medium">{tool.name}</div>
+                <div className="mt-1 text-muted-foreground">{tool.description}</div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Activity className="h-4 w-4 text-[var(--cyan)]" />
+            Recent tool executions
+          </div>
+          <pre className="mt-4 max-h-[360px] overflow-auto rounded-lg border border-border/60 bg-black/20 p-3 text-[11px] text-muted-foreground">
+            {JSON.stringify(toolExecutions.slice(0, 8), null, 2)}
           </pre>
         </Panel>
       </div>

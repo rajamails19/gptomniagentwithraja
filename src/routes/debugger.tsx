@@ -19,7 +19,7 @@ import { getAgentScores, getDecisionCards, getMemoryUsage } from "@/lib/demo/int
 export const Route = createFileRoute("/debugger")({
   head: () => ({
     meta: [
-      { title: "Debugger — GPT Omni Agents" },
+      { title: "Debugger — OmniAgents" },
       {
         name: "description",
         content:

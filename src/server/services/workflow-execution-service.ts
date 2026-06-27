@@ -8,6 +8,8 @@ import { artifactRepository } from "../repositories/artifact-repository";
 import { runRepository } from "../repositories/run-repository";
 import { scenarioRepository } from "../repositories/scenario-repository";
 import { traceRepository } from "../repositories/trace-repository";
+import { toolExecutionRepository } from "../repositories/tool-execution-repository";
+import { toolExecutor } from "../tools/ToolExecutor";
 import { badRequest, notFound } from "../utils/errors";
 import { getExecutionLogs, recordExecutionLog } from "../utils/execution-logger";
 
@@ -127,6 +129,8 @@ export class WorkflowExecutionService {
     const activeStep = scenario.steps[activeIndex];
     const now = new Date().toISOString();
 
+    await this.runStepTools(run, scenario, activeStep.id);
+
     scenario.steps.forEach((step, index) => {
       runRepository.updateStep(runId, step.id, {
         status: index < activeIndex ? "completed" : index === activeIndex ? "running" : "pending",
@@ -183,6 +187,11 @@ export class WorkflowExecutionService {
     });
 
     traceRepository.replaceForRun(run.id, createTrace(scenario, run.id));
+    await this.runStepTools(run, scenario, "research");
+    await this.runStepTools(run, scenario, "docs");
+    await this.runStepTools(run, scenario, "qa");
+    await this.runStepTools(run, scenario, "final");
+
     const artifactMarkdown = await this.generateFinalArtifact(run, scenario);
     artifactRepository.upsertForRun({
       ...scenario.finalArtifact,
@@ -253,6 +262,127 @@ export class WorkflowExecutionService {
         },
       });
       return scenario.finalArtifact.markdown;
+    }
+  }
+
+  private async runStepTools(run: ApiRun, scenario: DemoScenario, stepId: DemoNodeId) {
+    if (scenario.id !== DEFAULT_SCENARIO_ID) return;
+
+    const existing = toolExecutionRepository.listForRun(run.id);
+    const executeOnce = async (toolId: string, input: unknown, traceEventId: string) => {
+      if (
+        existing.some(
+          (execution) => execution.toolId === toolId && execution.traceEventId === traceEventId,
+        )
+      ) {
+        return;
+      }
+      try {
+        const result = await toolExecutor.execute(toolId, input, {
+          runId: run.id,
+          traceEventId,
+        });
+        recordExecutionLog({
+          runId: run.id,
+          event: "tool.executed",
+          status: "running",
+          details: { toolId, durationMs: result.durationMs },
+        });
+      } catch (error) {
+        recordExecutionLog({
+          runId: run.id,
+          event: "tool.failed",
+          status: "running",
+          details: {
+            toolId,
+            reason: error instanceof Error ? error.message : "Tool execution failed",
+          },
+        });
+      }
+    };
+
+    if (stepId === "research") {
+      await executeOnce(
+        "openapi-inspector",
+        {
+          endpoints: [
+            {
+              method: "POST",
+              path: "/payments/intents",
+              summary: "Create a PaymentIntent",
+              auth: "Bearer token required",
+            },
+            {
+              method: "GET",
+              path: "/payments/intents/:id",
+              summary: "Retrieve a PaymentIntent",
+              auth: "Bearer token required",
+            },
+            {
+              method: "POST",
+              path: "/payments/refunds",
+              summary: "Refund a captured charge",
+              auth: "Bearer token required",
+            },
+            {
+              method: "POST",
+              path: "/payments/disputes/:id/evidence",
+              summary: "Submit dispute evidence",
+              auth: "Bearer token required",
+            },
+          ],
+        },
+        "tool_research",
+      );
+    }
+
+    if (stepId === "docs") {
+      await executeOnce(
+        "markdown-generator",
+        {
+          title: scenario.finalArtifact.title,
+          bulletPoints: [
+            "Base URL documented",
+            "Auth and idempotency covered",
+            "Error table included",
+          ],
+          sections: [
+            {
+              heading: "Overview",
+              body: "Client-ready Payments API documentation generated from inspected endpoint evidence.",
+            },
+            {
+              heading: "Endpoints",
+              bullets: [
+                "POST /payments/intents",
+                "GET /payments/intents/:id",
+                "POST /payments/refunds",
+              ],
+            },
+          ],
+        },
+        "tool_draft",
+      );
+    }
+
+    if (stepId === "qa") {
+      await executeOnce(
+        "risk-scanner",
+        {
+          text: scenario.finalArtifact.markdown,
+        },
+        "tool_checklist",
+      );
+    }
+
+    if (stepId === "final") {
+      await executeOnce(
+        "trace-summarizer",
+        {
+          traceEvents: traceRepository.listForRun(run.id) ?? [],
+        },
+        "tool_summary",
+      );
     }
   }
 

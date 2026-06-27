@@ -46,6 +46,26 @@ export type ApiRequestLog = {
   errorMessage?: string;
 };
 
+export type ApiToolSummary = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+};
+
+export type ApiToolExecution = {
+  id: string;
+  runId: string | null;
+  traceEventId: string | null;
+  toolId: string;
+  inputSummary: string;
+  outputSummary: string;
+  status: "success" | "error";
+  durationMs: number;
+  error: string | null;
+  createdAt: string;
+};
+
 type ApiEnvelope<T> =
   | {
       success: true;
@@ -163,6 +183,18 @@ export async function getApiLogs() {
 export async function getExecutionLogs() {
   const data = await requestJson<{ logs: unknown[] }>("/api/v1/developer/execution-logs");
   return data.logs;
+}
+
+export async function getTools() {
+  const data = await requestJson<{ tools: ApiToolSummary[] }>("/api/v1/tools");
+  return data.tools;
+}
+
+export async function getToolExecutions() {
+  const data = await requestJson<{ executions: ApiToolExecution[] }>(
+    "/api/v1/developer/tool-executions",
+  );
+  return data.executions;
 }
 
 export async function testLlm(prompt: string, options?: { model?: string; temperature?: number }) {

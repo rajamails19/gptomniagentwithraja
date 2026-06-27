@@ -39,7 +39,7 @@ export function Sidebar() {
           <Sparkles className="h-4.5 w-4.5 text-white" />
         </div>
         <div className="leading-tight">
-          <div className="text-sm font-semibold tracking-tight">GPT Omni Agents</div>
+          <div className="text-sm font-semibold tracking-tight">OmniAgents</div>
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
             Control Room
           </div>

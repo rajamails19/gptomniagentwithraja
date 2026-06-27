@@ -205,7 +205,7 @@ function seedSettingsIfNeeded(now: string) {
     .values({
       key: "workspace",
       valueJson: JSON.stringify({
-        workspaceName: "GPT Omni Agents Demo",
+        workspaceName: "OmniAgents Demo",
         defaultEnvironment: "development",
         region: "local",
         storageMode: "sqlite",

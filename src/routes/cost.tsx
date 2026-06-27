@@ -18,7 +18,7 @@ import { useDemo } from "@/lib/demo-context";
 export const Route = createFileRoute("/cost")({
   head: () => ({
     meta: [
-      { title: "Cost Analytics — GPT Omni Agents" },
+      { title: "Cost Analytics — OmniAgents" },
       {
         name: "description",
         content:

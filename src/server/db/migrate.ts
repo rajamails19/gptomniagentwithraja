@@ -127,6 +127,22 @@ export function runMigrations() {
 
     create index if not exists idx_llm_logs_execution_created
       on llm_logs (execution_id, created_at);
+
+    create table if not exists tool_executions (
+      id text primary key,
+      run_id text,
+      trace_event_id text,
+      tool_id text not null,
+      input_summary text not null,
+      output_summary text not null,
+      status text not null check (status in ('success', 'error')),
+      duration_ms integer not null,
+      error text,
+      created_at text not null
+    );
+
+    create index if not exists idx_tool_executions_run_created
+      on tool_executions (run_id, created_at);
   `);
 
   migrated = true;

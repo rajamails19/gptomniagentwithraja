@@ -9,7 +9,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/prompts")({
   head: () => ({
     meta: [
-      { title: "Prompt Library — GPT Omni Agents" },
+      { title: "Prompt Library — OmniAgents" },
       {
         name: "description",
         content: "Manage, test, and version prompts across agents, tools and safety policies.",

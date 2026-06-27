@@ -14,7 +14,7 @@ export type ApiSettings = {
 export class SettingsRepository {
   get(): ApiSettings {
     return {
-      workspaceName: "GPT Omni Agents Demo",
+      workspaceName: "OmniAgents Demo",
       defaultEnvironment: "development",
       region: "local",
       storageMode: "sqlite",

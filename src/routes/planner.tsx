@@ -10,7 +10,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/planner")({
   head: () => ({
     meta: [
-      { title: "Planner — GPT Omni Agents" },
+      { title: "Planner — OmniAgents" },
       {
         name: "description",
         content:

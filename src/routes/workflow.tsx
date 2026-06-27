@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Play, RotateCcw, Rewind, FileText, Bug, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +26,7 @@ import {
 export const Route = createFileRoute("/workflow")({
   head: () => ({
     meta: [
-      { title: "Workflow Canvas — GPT Omni Agents" },
+      { title: "Workflow Canvas — OmniAgents" },
       {
         name: "description",
         content: "LangGraph-style multi-agent orchestration with live execution status.",
@@ -59,6 +59,16 @@ const EDGES: Array<{ from: DemoNodeId; to: DemoNodeId }> = [
   { from: "qa", to: "reviewer" },
   { from: "reviewer", to: "final" },
 ];
+const WORKFLOW_ANIMATION_ORDER: DemoNodeId[] = [
+  "user",
+  "planner",
+  "research",
+  "code",
+  "docs",
+  "qa",
+  "reviewer",
+  "final",
+];
 
 function edgePath(a: { x: number; y: number }, b: { x: number; y: number }) {
   const sx = a.x + NODE_W / 2;
@@ -74,6 +84,12 @@ function WorkflowPage() {
   const currentRun = demo.currentRun;
   const [activeId, setActiveId] = useState<DemoNodeId>("planner");
   const [showOutput, setShowOutput] = useState(false);
+  const [animatedNodeId, setAnimatedNodeId] = useState<DemoNodeId | null>(null);
+  const [animatedNodeIds, setAnimatedNodeIds] = useState<Set<DemoNodeId>>(() => new Set());
+  const [animationLogs, setAnimationLogs] = useState<
+    Array<{ ts: string; agent: string; message: string; tone: "success" }>
+  >([]);
+  const animationTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const active = currentRun.stepRuns.find((n) => n.id === activeId) ?? currentRun.stepRuns[1];
   const activeStatus = demo.statuses[activeId];
   const activePhase = getAgentPhaseIndex(active);
@@ -83,6 +99,43 @@ function WorkflowPage() {
   const decisions = getDecisionCards(currentRun);
   const conversation = getAgentConversation(currentRun);
   const summary = getExecutionSummary(currentRun);
+  const activeLogs = [...demo.logs, ...animationLogs]
+    .filter((log) => log.agent === active.agent)
+    .slice(-8);
+
+  const clearWorkflowAnimation = () => {
+    animationTimers.current.forEach(clearTimeout);
+    animationTimers.current = [];
+    setAnimatedNodeId(null);
+    setAnimatedNodeIds(new Set());
+    setAnimationLogs([]);
+  };
+
+  const startWorkflowAnimation = () => {
+    clearWorkflowAnimation();
+    WORKFLOW_ANIMATION_ORDER.forEach((nodeId, index) => {
+      animationTimers.current.push(
+        setTimeout(() => {
+          const step = currentRun.stepRuns.find((node) => node.id === nodeId);
+          if (!step) return;
+          setActiveId(nodeId);
+          setAnimatedNodeId(nodeId);
+          setAnimatedNodeIds((previous) => new Set(previous).add(nodeId));
+          setAnimationLogs((previous) => [
+            ...previous,
+            {
+              ts: new Date().toLocaleTimeString([], { hour12: false }),
+              agent: step.agent,
+              message: `${step.label} activated in the demo workflow sequence.`,
+              tone: "success",
+            },
+          ]);
+        }, index * 500),
+      );
+    });
+  };
+
+  useEffect(() => () => clearWorkflowAnimation(), []);
 
   return (
     <div className="space-y-6">
@@ -92,17 +145,34 @@ function WorkflowPage() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button
-              onClick={demo.start}
+              onClick={() => {
+                startWorkflowAnimation();
+                demo.start();
+              }}
               disabled={demo.isRunning}
               className="bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0 shadow-[0_10px_30px_-16px_oklch(0.72_0.2_250/0.9)]"
             >
               <Play className="h-3.5 w-3.5 mr-1.5" />{" "}
               {demo.isComplete ? "Run Demo Again" : "Run Demo Workflow"}
             </Button>
-            <Button variant="outline" onClick={demo.start} disabled={demo.isRunning}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                startWorkflowAnimation();
+                demo.start();
+              }}
+              disabled={demo.isRunning}
+            >
               <Rewind className="h-3.5 w-3.5 mr-1.5" /> Replay
             </Button>
-            <Button variant="outline" onClick={demo.reset}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                clearWorkflowAnimation();
+                setActiveId("planner");
+                demo.reset();
+              }}
+            >
               <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset
             </Button>
             <Button asChild variant="outline">
@@ -158,6 +228,13 @@ function WorkflowPage() {
                     <feMergeNode in="SourceGraphic" />
                   </feMerge>
                 </filter>
+                <filter id="greenGlow">
+                  <feGaussianBlur stdDeviation="5" result="b" />
+                  <feMerge>
+                    <feMergeNode in="b" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
               </defs>
 
               {EDGES.map((e, i) => {
@@ -199,23 +276,29 @@ function WorkflowPage() {
                 const p = POSITIONS[n.id];
                 const s = demo.statuses[n.id];
                 const isActive = activeId === n.id;
-                const fill =
-                  s === "running"
+                const isAnimationActive = animatedNodeId === n.id;
+                const wasAnimationActivated = animatedNodeIds.has(n.id);
+                const fill = isAnimationActive
+                  ? "oklch(0.24 0.07 165)"
+                  : s === "running"
                     ? "oklch(0.22 0.06 260)"
                     : s === "success"
                       ? "oklch(0.22 0.05 165)"
                       : s === "error"
                         ? "oklch(0.22 0.08 25)"
                         : "oklch(0.18 0.03 264)";
-                const stroke = isActive
-                  ? "oklch(0.72 0.2 250)"
-                  : s === "running"
-                    ? "oklch(0.72 0.2 250)"
-                    : s === "success"
-                      ? "oklch(0.78 0.17 165)"
-                      : s === "error"
-                        ? "oklch(0.65 0.22 25)"
-                        : "oklch(1 0 0 / 0.14)";
+                const stroke =
+                  isAnimationActive || wasAnimationActivated
+                    ? "oklch(0.78 0.17 165)"
+                    : isActive
+                      ? "oklch(0.72 0.2 250)"
+                      : s === "running"
+                        ? "oklch(0.72 0.2 250)"
+                        : s === "success"
+                          ? "oklch(0.78 0.17 165)"
+                          : s === "error"
+                            ? "oklch(0.65 0.22 25)"
+                            : "oklch(1 0 0 / 0.14)";
                 return (
                   <g
                     key={n.id}
@@ -238,15 +321,21 @@ function WorkflowPage() {
                       rx={12}
                       fill={fill}
                       stroke={stroke}
-                      strokeWidth={isActive ? 2 : 1.2}
-                      filter={s === "running" ? "url(#glow)" : undefined}
+                      strokeWidth={isAnimationActive || isActive ? 2 : 1.2}
+                      filter={
+                        isAnimationActive
+                          ? "url(#greenGlow)"
+                          : s === "running"
+                            ? "url(#glow)"
+                            : undefined
+                      }
                     />
                     <circle
                       cx={14}
                       cy={NODE_H / 2}
                       r={4}
                       fill={
-                        s === "success"
+                        isAnimationActive || wasAnimationActivated || s === "success"
                           ? "oklch(0.78 0.17 165)"
                           : s === "running"
                             ? "oklch(0.72 0.2 250)"
@@ -467,28 +556,25 @@ function WorkflowPage() {
             Recent logs
           </div>
           <div className="rounded-lg bg-white/[0.03] border border-border/60 p-2 max-h-44 overflow-auto space-y-1">
-            {demo.logs
-              .filter((l) => l.agent === active.agent)
-              .slice(-8)
-              .map((l, i) => (
-                <div key={i} className="text-[11px] font-mono flex gap-1.5">
-                  <span className="text-muted-foreground">{l.ts}</span>
-                  <span
-                    className={
-                      l.tone === "warn"
-                        ? "text-[var(--amber)]"
-                        : l.tone === "error"
-                          ? "text-[var(--destructive)]"
-                          : l.tone === "success"
-                            ? "text-[var(--emerald)]"
-                            : "text-muted-foreground"
-                    }
-                  >
-                    {l.message}
-                  </span>
-                </div>
-              ))}
-            {demo.logs.filter((l) => l.agent === active.agent).length === 0 && (
+            {activeLogs.map((l, i) => (
+              <div key={i} className="text-[11px] font-mono flex gap-1.5">
+                <span className="text-muted-foreground">{l.ts}</span>
+                <span
+                  className={
+                    l.tone === "warn"
+                      ? "text-[var(--amber)]"
+                      : l.tone === "error"
+                        ? "text-[var(--destructive)]"
+                        : l.tone === "success"
+                          ? "text-[var(--emerald)]"
+                          : "text-muted-foreground"
+                  }
+                >
+                  {l.message}
+                </span>
+              </div>
+            ))}
+            {activeLogs.length === 0 && (
               <EmptyState
                 title="No node events yet."
                 description="Run the workflow or select an agent that has already executed to inspect its recent log events."

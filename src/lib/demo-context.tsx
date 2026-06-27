@@ -55,6 +55,7 @@ interface DemoState {
   logs: DemoLog[];
   metrics: DemoMetrics;
   completedExecutions: ExecutionRecord[];
+  hasStartedRunInSession: boolean;
   currentRun: DemoRun;
   lastCompletedId: string | null;
   scenarios: DemoScenario[];
@@ -83,6 +84,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     latency: 842,
   });
   const [completedExecutions, setCompletedExecutions] = useState<ExecutionRecord[]>([]);
+  const [hasStartedRunInSession, setHasStartedRunInSession] = useState(false);
   const [lastCompletedId, setLastCompletedId] = useState<string | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const activeBackendRunId = useRef<string | null>(null);
@@ -114,6 +116,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const startLocalDemo = useCallback(() => {
     clearTimers();
+    setHasStartedRunInSession(true);
     setIsRunning(true);
     setIsComplete(false);
     setLastCompletedId(null);
@@ -256,6 +259,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const start = useCallback(() => {
     clearTimers();
     activeBackendRunId.current = null;
+    setHasStartedRunInSession(true);
     setIsRunning(true);
     setIsComplete(false);
     setLastCompletedId(null);
@@ -293,6 +297,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       })),
       metrics,
       completedExecutions,
+      hasStartedRunInSession,
       lastCompletedId,
       engineRuntime,
     }),
@@ -303,6 +308,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       engineRuntime,
       metrics,
       completedExecutions,
+      hasStartedRunInSession,
       lastCompletedId,
     ],
   );

@@ -19,7 +19,7 @@ import { useDemo } from "@/lib/demo-context";
 export const Route = createFileRoute("/agents")({
   head: () => ({
     meta: [
-      { title: "Agents — GPT Omni Agents" },
+      { title: "Agents — OmniAgents" },
       {
         name: "description",
         content: "Specialized sub-agents with skills, tools, models, costs and health.",

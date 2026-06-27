@@ -1,6 +1,6 @@
-# GPT Omni Agents
+# OmniAgents
 
-GPT Omni Agents is an interactive AI agent control-room demo for planning, execution, debugging, monitoring, and governance.
+OmniAgents is an interactive AI agent control-room demo for planning, execution, debugging, monitoring, and governance.
 
 This project is currently positioned as a client/investor-ready product demo. It uses realistic mock data and deterministic demo state, but it is not a live production backend yet.
 
@@ -87,6 +87,15 @@ LLM provider configuration:
 
 All LLM access goes through `src/server/llm/`. The frontend never calls provider APIs directly. The API Documentation Generation workflow attempts a real LLM artifact generation at completion; if the provider is missing or unavailable, it falls back to the deterministic demo artifact and records the fallback in execution logs.
 
+Tool execution framework:
+
+- Tools live under `src/server/tools/`.
+- Every tool has an ID, name, description, category, Zod input schema, Zod output schema, and server-only `execute()` method.
+- The frontend never calls tool implementations directly; it only talks to API routes.
+- Tool executions are logged to SQLite with run ID, trace event ID, input/output summaries, status, duration, error, and timestamp.
+- Initial safe local tools: `openapi-inspector`, `markdown-generator`, `risk-scanner`, `cost-estimator`, and `trace-summarizer`.
+- To add a tool, implement `BaseTool`, register it in `ToolRegistry`, and keep inputs/outputs non-dangerous and schema-validated.
+
 Available endpoints:
 
 - `GET /api/v1/health`
@@ -104,10 +113,13 @@ Available endpoints:
 - `GET /api/v1/runs/:id/artifact`
 - `GET /api/v1/agents`
 - `GET /api/v1/tools`
+- `GET /api/v1/tools/:id`
+- `POST /api/v1/tools/:id/execute`
 - `GET /api/v1/settings`
 - `GET /api/v1/developer/routes`
 - `GET /api/v1/developer/logs`
 - `GET /api/v1/developer/execution-logs`
+- `GET /api/v1/developer/tool-executions`
 
 Local API testing:
 
@@ -119,6 +131,10 @@ curl -X POST http://localhost:8087/api/v1/llm/test \
   -H "content-type: application/json" \
   -d '{"prompt":"Write one sentence about API documentation."}'
 curl http://localhost:8087/api/v1/scenarios
+curl http://localhost:8087/api/v1/tools
+curl -X POST http://localhost:8087/api/v1/tools/openapi-inspector/execute \
+  -H "content-type: application/json" \
+  -d '{"input":{"endpoints":[{"method":"GET","path":"/health","summary":"Health check"}]}}'
 curl http://localhost:8087/api/v1/scenarios/security-incident
 curl http://localhost:8087/api/v1/runs
 curl -X POST http://localhost:8087/api/v1/runs \
@@ -167,7 +183,7 @@ Recommended Vercel settings:
 
 ```sh
 git add .
-git commit -m "Initial GPT Omni Agents app"
+git commit -m "Initial OmniAgents app"
 git branch -M main
 git remote add origin <your-github-repo-url>
 git push -u origin main

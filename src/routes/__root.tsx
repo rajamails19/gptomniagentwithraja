@@ -80,14 +80,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "GPT Omni Agents — AI Agent Control Room" },
+      { title: "OmniAgents — AI Agent Control Room" },
       {
         name: "description",
         content:
           "AI agent control room for planning, execution, debugging, monitoring, and governance.",
       },
-      { name: "author", content: "GPT Omni Agents" },
-      { property: "og:title", content: "GPT Omni Agents — AI Agent Control Room" },
+      { name: "author", content: "OmniAgents" },
+      { property: "og:title", content: "OmniAgents — AI Agent Control Room" },
       {
         property: "og:description",
         content:
@@ -95,22 +95,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "GPT Omni Agents — AI Agent Control Room" },
+      { name: "twitter:title", content: "OmniAgents — AI Agent Control Room" },
       {
         name: "twitter:description",
         content:
           "AI agent control room for planning, execution, debugging, monitoring, and governance.",
       },
-      {
-        property: "og:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/ad71e5e9-e530-4bf6-8ac2-9859825d346c/id-preview-7ecc091e--6cc9e28d-2683-43cc-b34f-07b30569a82d.lovable.app-1782443791576.png",
-      },
-      {
-        name: "twitter:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/ad71e5e9-e530-4bf6-8ac2-9859825d346c/id-preview-7ecc091e--6cc9e28d-2683-43cc-b34f-07b30569a82d.lovable.app-1782443791576.png",
-      },
+      { property: "og:image", content: "/og-preview.png" },
+      { name: "twitter:image", content: "/og-preview.png" },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
@@ -147,6 +139,9 @@ function RootComponent() {
             <main className="flex-1 p-4 lg:p-6 min-w-0">
               <Outlet />
             </main>
+            <footer className="h-10 shrink-0 bg-black/70 border-t border-border/60 px-4 lg:px-6 flex items-center justify-end text-[11px] text-muted-foreground">
+              © 2026 OmniAgents · Built by Raja · Seekra Labs
+            </footer>
           </div>
         </div>
         <PresentationMode />

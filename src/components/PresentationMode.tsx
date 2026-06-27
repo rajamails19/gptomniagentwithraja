@@ -256,7 +256,7 @@ function ProblemSlide() {
         </div>
         <div className="mt-5 rounded-xl border border-[var(--electric)]/30 bg-[var(--electric)]/10 p-4">
           <div className="text-base font-semibold">
-            GPT Omni Agents provides one unified AI Control Room.
+            OmniAgents provides one unified AI Control Room.
           </div>
         </div>
       </div>
@@ -554,7 +554,7 @@ function ThanksSlide() {
   return (
     <div className="min-h-[420px] rounded-2xl glass p-8 lg:p-12 flex flex-col items-center justify-center text-center">
       <div className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
-        GPT Omni Agents
+        OmniAgents
       </div>
       <h3 className="mt-4 text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight">
         <span className="text-gradient">Enterprise AI Agent Orchestration Platform</span>

@@ -58,7 +58,7 @@ export function Topbar() {
   return (
     <header className="h-16 shrink-0 border-b border-border/60 bg-background/40 backdrop-blur-xl sticky top-0 z-30">
       <div className="h-full px-3 lg:px-6 flex items-center gap-2 lg:gap-3">
-        <div className="md:hidden text-sm font-semibold tracking-tight">GPT Omni Agents</div>
+        <div className="md:hidden text-sm font-semibold tracking-tight">OmniAgents</div>
 
         <div className="relative flex-1 max-w-xl ml-2 hidden md:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -170,8 +170,8 @@ export function Topbar() {
             AK
           </div>
           <div className="hidden md:block leading-tight">
-            <div className="text-xs font-medium">Alex Kim</div>
-            <div className="text-[10px] text-muted-foreground">Platform Lead</div>
+            <div className="text-xs font-medium">Raja</div>
+            <div className="text-[10px] text-muted-foreground">Builder · Seekra Labs</div>
           </div>
         </div>
       </div>

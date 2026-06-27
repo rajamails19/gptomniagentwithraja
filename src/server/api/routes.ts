@@ -26,6 +26,7 @@ import {
   scenariosResponseSchema,
   traceResponseSchema,
 } from "../validation/schemas";
+import { toolExecuteRequestSchema, toolExecutionResponseSchema } from "../tools/validation";
 
 const agentsResponseSchema = z.object({
   agents: z.array(z.unknown()),
@@ -33,6 +34,14 @@ const agentsResponseSchema = z.object({
 
 const toolsResponseSchema = z.object({
   tools: z.array(z.unknown()),
+});
+
+const toolResponseSchema = z.object({
+  tool: z.unknown(),
+});
+
+const toolExecutionsResponseSchema = z.object({
+  executions: z.array(z.unknown()),
 });
 
 const settingsResponseSchema = z.object({
@@ -217,9 +226,46 @@ export const apiRoutes: ApiRoute[] = [
   {
     method: "GET",
     path: "/api/v1/tools",
-    summary: "List deterministic tools referenced by scenario runs.",
+    summary: "List registered server-side tools.",
     handler: ({ requestId }) => {
       const data = toolsResponseSchema.parse({ tools: toolService.listTools() });
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/v1/tools/:id",
+    summary: "Get one registered tool and its schema metadata.",
+    handler: ({ params, requestId }) => {
+      const { id } = validateParams(params, idParamSchema);
+      const data = toolResponseSchema.parse({ tool: toolService.getTool(id) });
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/v1/tools/:id/execute",
+    summary: "Execute a safe server-side tool with validated input and output.",
+    handler: async ({ params, request, requestId }) => {
+      const { id } = validateParams(params, idParamSchema);
+      const payload = await parseJsonBody(request, toolExecuteRequestSchema);
+      const data = toolExecutionResponseSchema.parse(
+        await toolService.executeTool(id, payload.input, {
+          runId: payload.runId,
+          traceEventId: payload.traceEventId,
+        }),
+      );
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/v1/developer/tool-executions",
+    summary: "List recent server-side tool executions.",
+    handler: ({ requestId }) => {
+      const data = toolExecutionsResponseSchema.parse({
+        executions: toolService.listRecentExecutions(),
+      });
       return json(data, requestId);
     },
   },

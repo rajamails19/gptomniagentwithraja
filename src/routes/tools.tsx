@@ -5,7 +5,7 @@ import { tools } from "@/lib/mock-data";
 export const Route = createFileRoute("/tools")({
   head: () => ({
     meta: [
-      { title: "Tool Registry — GPT Omni Agents" },
+      { title: "Tool Registry — OmniAgents" },
       {
         name: "description",
         content: "MCP / tool catalog: permissions, latency, success rate and errors.",

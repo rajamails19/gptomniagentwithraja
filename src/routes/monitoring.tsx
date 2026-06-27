@@ -31,7 +31,7 @@ import { useDemo } from "@/lib/demo-context";
 export const Route = createFileRoute("/monitoring")({
   head: () => ({
     meta: [
-      { title: "Monitoring — GPT Omni Agents" },
+      { title: "Monitoring — OmniAgents" },
       {
         name: "description",
         content: "Live observability for agents, latency, tokens, costs, errors and queues.",

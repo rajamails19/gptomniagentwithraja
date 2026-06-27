@@ -54,7 +54,7 @@ import type { ApiScenario } from "@/lib/api/schemas";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dashboard — GPT Omni Agents" },
+      { title: "Dashboard — OmniAgents" },
       {
         name: "description",
         content:
@@ -192,9 +192,9 @@ function Dashboard() {
               multi-agent AI workflows.
             </h2>
             <p className="mt-3 text-sm text-muted-foreground">
-              GPT Omni Agents demonstrates how modern AI systems use a planner, orchestrator,
-              specialized sub-agents, tools, memory, debugging, monitoring, and cost governance to
-              run production-grade workflows.
+              OmniAgents demonstrates how modern AI systems use a planner, orchestrator, specialized
+              sub-agents, tools, memory, debugging, monitoring, and cost governance to run
+              production-grade workflows.
             </p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <select
@@ -653,19 +653,21 @@ function Dashboard() {
             </div>
             <StatBadge tone="info">Live tail</StatBadge>
           </div>
-          {demo.completedExecutions.length === 0 && !demo.isRunning && (
-            <div className="mb-4">
-              <EmptyState
-                title="No demo executions yet."
-                description="Run your first workflow to generate an execution trace, debugger evidence, and a final artifact."
-                action={
-                  <Button size="sm" onClick={demo.start}>
-                    <Play className="h-3.5 w-3.5" /> Run Demo Workflow
-                  </Button>
-                }
-              />
-            </div>
-          )}
+          {!demo.hasStartedRunInSession &&
+            demo.completedExecutions.length === 0 &&
+            !demo.isRunning && (
+              <div className="mb-4">
+                <EmptyState
+                  title="Start a live demo run."
+                  description="Run your first workflow to generate an execution trace, debugger evidence, and a final artifact."
+                  action={
+                    <Button size="sm" onClick={demo.start}>
+                      <Play className="h-3.5 w-3.5" /> Run Demo Workflow
+                    </Button>
+                  }
+                />
+              </div>
+            )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">

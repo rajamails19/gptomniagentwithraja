@@ -1,4 +1,4 @@
-// Centralized realistic mock data for GPT Omni Agents.
+// Centralized realistic mock data for OmniAgents.
 
 export type AgentStatus = "idle" | "running" | "success" | "error" | "queued";
 

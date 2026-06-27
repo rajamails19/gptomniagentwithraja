@@ -429,6 +429,29 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
       "Scan /api/payments/* route handlers and Zod schemas.",
       "Serialize openapi://payments@v4.2 to GitHub markdown.",
       "Validate generated markdown against 14 QA criteria.",
+    ).map((toolCall) =>
+      toolCall.id === "tool_research"
+        ? {
+            ...toolCall,
+            tool: "openapi-inspector",
+            outputSummary: "Inspected endpoint methods, missing docs, and auth requirements.",
+          }
+        : toolCall.id === "tool_draft" || toolCall.id === "tool_draft_retry"
+          ? {
+              ...toolCall,
+              tool: "markdown-generator",
+              outputSummary:
+                toolCall.id === "tool_draft_retry"
+                  ? "Recovered from markdown generation retry path."
+                  : "Generated structured markdown documentation.",
+            }
+          : toolCall.id === "tool_checklist"
+            ? {
+                ...toolCall,
+                tool: "risk-scanner",
+                outputSummary: "Scanned generated artifact for documentation and governance risks.",
+              }
+            : toolCall,
     ),
     finalArtifact: {
       title: FINAL_OUTPUT_TITLE,
