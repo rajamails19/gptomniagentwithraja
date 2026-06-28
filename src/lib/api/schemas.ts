@@ -27,7 +27,7 @@ export const finalArtifactSchema = z.object({
   filename: z.string(),
   sizeLabel: z.string(),
   status: z.enum(["draft", "approved"]),
-  approvedBy: z.string(),
+  approvedBy: z.string().nullable(),
   markdown: z.string(),
 });
 
