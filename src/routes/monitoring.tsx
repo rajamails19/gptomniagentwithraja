@@ -25,7 +25,7 @@ import {
   StatusBadge,
   StatusDot,
 } from "@/components/ui/page";
-import { getRuns, type ApiRun } from "@/lib/api/client";
+import { getDeveloperEvents, getRuns, type ApiRun, type ApiRunEvent } from "@/lib/api/client";
 import { useDemo } from "@/lib/demo-context";
 
 export const Route = createFileRoute("/monitoring")({
@@ -67,8 +67,8 @@ const MODEL_COLORS: Record<string, string> = {
 // scenario step agents (planner→gpt-4o, research→claude, code→gemini, etc.)
 const MODEL_RATIOS: Array<[string, number]> = [
   ["gpt-4o", 0.45],
-  ["claude-3.5-sonnet", 0.30],
-  ["gemini-1.5-pro", 0.20],
+  ["claude-3.5-sonnet", 0.3],
+  ["gemini-1.5-pro", 0.2],
   ["llama-3.1-70b", 0.05],
 ];
 
@@ -110,9 +110,18 @@ function buildAlerts(runs: ApiRun[]): Alert[] {
   return alerts.slice(0, 6);
 }
 
-type AgentRow = { id: string; name: string; status: "active" | "idle" | "error"; latencyMs: number; health: number };
+type AgentRow = {
+  id: string;
+  name: string;
+  status: "active" | "idle" | "error";
+  latencyMs: number;
+  health: number;
+};
 
-function buildAgents(runs: ApiRun[], demo: { selectedScenario: { steps: Array<{ agent: string }> } }): AgentRow[] {
+function buildAgents(
+  runs: ApiRun[],
+  demo: { selectedScenario: { steps: Array<{ agent: string }> } },
+): AgentRow[] {
   const activeAgentNames = new Set(
     demo.selectedScenario.steps.filter((s) => s.agent !== "—").map((s) => s.agent),
   );
@@ -130,7 +139,8 @@ function buildAgents(runs: ApiRun[], demo: { selectedScenario: { steps: Array<{ 
     const isRunning = !!runningRun;
     const hasError = i === 0 && failedCount > 0;
     // Each agent gets a slice of the avg run latency (first agent takes more)
-    const agentLatency = avgRunLatency > 0 ? Math.round(avgRunLatency * (1 - i * 0.12)) : 120 + i * 30;
+    const agentLatency =
+      avgRunLatency > 0 ? Math.round(avgRunLatency * (1 - i * 0.12)) : 120 + i * 30;
     const health = hasError ? 85 : isRunning ? 98 : 99;
     return {
       id: `agent-${i}`,
@@ -147,12 +157,39 @@ function buildAgents(runs: ApiRun[], demo: { selectedScenario: { steps: Array<{ 
 function MonitoringPage() {
   const demo = useDemo();
   const [runs, setRuns] = useState<ApiRun[] | null>(null);
+  const [events, setEvents] = useState<ApiRunEvent[]>([]);
+  const [eventSource, setEventSource] = useState<"api" | "demo">("demo");
 
   useEffect(() => {
-    getRuns()
-      .then(setRuns)
-      .catch(() => setRuns([]));
+    let active = true;
+    Promise.all([getRuns(), getDeveloperEvents().catch(() => null)])
+      .then(([nextRuns, eventPayload]) => {
+        if (!active) return;
+        setRuns(nextRuns);
+        if (eventPayload) {
+          setEvents(eventPayload.events);
+          setEventSource("api");
+        } else {
+          setEvents([]);
+          setEventSource("demo");
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setRuns([]);
+        setEvents([]);
+        setEventSource("demo");
+      });
+    return () => {
+      active = false;
+    };
   }, [demo.lastCompletedId]);
+
+  useEffect(() => {
+    if (eventSource === "demo") {
+      setEvents(demo.liveEvents);
+    }
+  }, [demo.liveEvents, eventSource]);
 
   const scenario = demo.selectedScenario;
 
@@ -168,19 +205,32 @@ function MonitoringPage() {
   const modelBreakdown = buildModelBreakdown(runs);
   const alerts = buildAlerts(runs);
   const agents = buildAgents(runs, demo);
+  const liveEventCount = events.length;
+  const eventTypes = Array.from(new Set(events.slice(0, 16).map((event) => event.type)));
+  const approvalEvents = events.filter((event) => event.type.startsWith("approval.")).length;
+  const toolEvents = events.filter((event) => event.type.startsWith("tool.")).length;
+  const memoryEvents = events.filter((event) => event.type === "memory.written").length;
 
   const totalRuns = runs.length;
-  const failedRuns = runs.filter((r) => r.status === "failed" || r.status === "error" || r.status === "rejected").length;
+  const failedRuns = runs.filter(
+    (r) => r.status === "failed" || r.status === "error" || r.status === "rejected",
+  ).length;
   const totalTokens = runs.reduce((s, r) => s + r.costSummary.totalTokens, 0);
   const avgCost =
-    runs.length > 0
-      ? runs.reduce((s, r) => s + r.costSummary.totalCost, 0) / runs.length
-      : 0;
+    runs.length > 0 ? runs.reduce((s, r) => s + r.costSummary.totalCost, 0) / runs.length : 0;
 
   const kpis = [
     { k: "Total runs", v: String(totalRuns), t: "info" as const },
-    { k: "Failed / rejected", v: String(failedRuns), t: failedRuns > 0 ? ("warn" as const) : ("success" as const) },
-    { k: "Total tokens", v: totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : String(totalTokens), t: "success" as const },
+    {
+      k: "Failed / rejected",
+      v: String(failedRuns),
+      t: failedRuns > 0 ? ("warn" as const) : ("success" as const),
+    },
+    {
+      k: "Total tokens",
+      v: totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : String(totalTokens),
+      t: "success" as const,
+    },
     { k: "Avg cost / run", v: `$${avgCost.toFixed(4)}`, t: "info" as const },
   ];
 
@@ -197,13 +247,15 @@ function MonitoringPage() {
       />
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((s) => (
           <div
             key={s.k}
             className="rounded-xl glass p-4 transition-[border-color,transform,background] duration-200 hover:-translate-y-px hover:border-white/15"
           >
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">{s.k}</div>
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              {s.k}
+            </div>
             <div className="mt-1 flex items-baseline justify-between">
               <div className="text-2xl font-semibold">{s.v}</div>
               <StatBadge tone={s.t}>live</StatBadge>
@@ -218,7 +270,7 @@ function MonitoringPage() {
         <div className="text-xs text-muted-foreground">
           Agents registered in the active scenario
         </div>
-        <div className="mt-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
           {agents.length > 0 ? (
             agents.map((a) => (
               <div
@@ -236,8 +288,44 @@ function MonitoringPage() {
             ))
           ) : (
             <div className="col-span-full">
-              <EmptyState title="No agents found." description="Trigger a run to see agent status." />
+              <EmptyState
+                title="No agents found."
+                description="Trigger a run to see agent status."
+              />
             </div>
+          )}
+        </div>
+      </Panel>
+
+      <Panel>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="text-sm font-semibold">Backend event stream</div>
+            <div className="text-xs text-muted-foreground">
+              Recent SSE/developer events from run lifecycle, approvals, tools, and memory writes.
+            </div>
+          </div>
+          <StatBadge tone={eventSource === "api" ? "success" : "warn"}>
+            {eventSource === "api" ? "Developer event API" : "Demo live events"}
+          </StatBadge>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+          <MiniMetric label="Events" value={String(liveEventCount)} />
+          <MiniMetric label="Approvals" value={String(approvalEvents)} />
+          <MiniMetric label="Tools" value={String(toolEvents)} />
+          <MiniMetric label="Memory" value={String(memoryEvents)} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {eventTypes.length > 0 ? (
+            eventTypes.map((type) => (
+              <StatBadge key={type} tone={type.startsWith("approval.") ? "warn" : "info"}>
+                {type}
+              </StatBadge>
+            ))
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              Start a workflow to populate live backend events.
+            </span>
           )}
         </div>
       </Panel>
@@ -258,10 +346,27 @@ function MonitoringPage() {
               <ResponsiveContainer>
                 <LineChart data={series}>
                   <CartesianGrid stroke="oklch(1 0 0 / 0.05)" vertical={false} />
-                  <XAxis dataKey="label" stroke="oklch(0.7 0.03 256)" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="oklch(0.7 0.03 256)" fontSize={11} tickLine={false} axisLine={false} />
+                  <XAxis
+                    dataKey="label"
+                    stroke="oklch(0.7 0.03 256)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="oklch(0.7 0.03 256)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
                   <Tooltip contentStyle={tt} />
-                  <Line type="monotone" dataKey="latency" stroke="oklch(0.82 0.16 210)" strokeWidth={2} dot={false} />
+                  <Line
+                    type="monotone"
+                    dataKey="latency"
+                    stroke="oklch(0.82 0.16 210)"
+                    strokeWidth={2}
+                    dot={false}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -278,10 +383,27 @@ function MonitoringPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid stroke="oklch(1 0 0 / 0.05)" vertical={false} />
-                  <XAxis dataKey="label" stroke="oklch(0.7 0.03 256)" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="oklch(0.7 0.03 256)" fontSize={11} tickLine={false} axisLine={false} />
+                  <XAxis
+                    dataKey="label"
+                    stroke="oklch(0.7 0.03 256)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="oklch(0.7 0.03 256)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
                   <Tooltip contentStyle={tt} />
-                  <Area type="monotone" dataKey="tokens" stroke="oklch(0.72 0.2 250)" fill="url(#tk)" strokeWidth={2} />
+                  <Area
+                    type="monotone"
+                    dataKey="tokens"
+                    stroke="oklch(0.72 0.2 250)"
+                    fill="url(#tk)"
+                    strokeWidth={2}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -292,8 +414,19 @@ function MonitoringPage() {
               <ResponsiveContainer>
                 <BarChart data={series}>
                   <CartesianGrid stroke="oklch(1 0 0 / 0.05)" vertical={false} />
-                  <XAxis dataKey="label" stroke="oklch(0.7 0.03 256)" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="oklch(0.7 0.03 256)" fontSize={11} tickLine={false} axisLine={false} />
+                  <XAxis
+                    dataKey="label"
+                    stroke="oklch(0.7 0.03 256)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="oklch(0.7 0.03 256)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
                   <Tooltip contentStyle={tt} />
                   <Bar dataKey="cost" fill="oklch(0.68 0.22 295)" radius={[3, 3, 0, 0]} />
                 </BarChart>
@@ -309,14 +442,24 @@ function MonitoringPage() {
           <div className="text-sm font-semibold">Model token usage</div>
           {modelBreakdown.length === 0 ? (
             <div className="mt-3">
-              <EmptyState title="No model data." description="Run a scenario to see model breakdown." />
+              <EmptyState
+                title="No model data."
+                description="Run a scenario to see model breakdown."
+              />
             </div>
           ) : (
             <>
               <div className="h-56 mt-3">
                 <ResponsiveContainer>
                   <PieChart>
-                    <Pie data={modelBreakdown} dataKey="value" innerRadius={50} outerRadius={90} paddingAngle={3} stroke="none">
+                    <Pie
+                      data={modelBreakdown}
+                      dataKey="value"
+                      innerRadius={50}
+                      outerRadius={90}
+                      paddingAngle={3}
+                      stroke="none"
+                    >
                       {modelBreakdown.map((m, i) => (
                         <Cell key={i} fill={m.color} />
                       ))}
@@ -327,8 +470,14 @@ function MonitoringPage() {
               </div>
               <div className="flex flex-wrap gap-3 mt-2">
                 {modelBreakdown.map((m) => (
-                  <div key={m.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="h-2 w-2 rounded-full shrink-0" style={{ background: m.color }} />
+                  <div
+                    key={m.name}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full shrink-0"
+                      style={{ background: m.color }}
+                    />
                     {m.name}
                   </div>
                 ))}
@@ -374,3 +523,12 @@ const tt = {
   borderRadius: 10,
   fontSize: 12,
 };
+
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-white/[0.03] px-3 py-2">
+      <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-lg font-semibold tabular-nums">{value}</div>
+    </div>
+  );
+}

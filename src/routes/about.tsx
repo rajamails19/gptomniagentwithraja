@@ -79,7 +79,6 @@ const SOCIAL_LINKS = [
 function AboutPage() {
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
-
       {/* Hero strip */}
       <div className="rounded-2xl border border-[var(--electric)]/20 bg-gradient-to-br from-[oklch(0.72_0.18_250/0.08)] to-[oklch(0.68_0.22_295/0.06)] p-6 sm:p-10 flex flex-col sm:flex-row gap-8 items-center">
         {/* Avatar */}
@@ -114,8 +113,8 @@ function AboutPage() {
           </p>
           <p className="mt-3 text-sm leading-6 text-muted-foreground max-w-xl">
             Building practical AI agent products with real workflows, observable execution, and
-            founder-level attention to the full demo experience. OmniAgents is the flagship
-            example — a production-grade control room for multi-agent AI systems.
+            founder-level attention to the full demo experience. OmniAgents is the flagship example
+            — a production-grade control room for multi-agent AI systems.
           </p>
 
           {/* Social links */}
@@ -147,7 +146,9 @@ function AboutPage() {
           <div>
             <div className="text-sm font-semibold">Request a Demo</div>
             <div className="mt-0.5 text-[11px] text-muted-foreground leading-4">
-              Live walkthrough for<br />investors &amp; engineering teams
+              Live walkthrough for
+              <br />
+              investors &amp; engineering teams
             </div>
           </div>
           <a
@@ -172,15 +173,15 @@ function AboutPage() {
             OmniAgents shows what serious AI agent software should feel like.
           </h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            The goal: when someone sees this project, they understand it's more than a static UI.
-            It demonstrates how a real control room coordinates planner agents, specialist agents,
+            The goal: when someone sees this project, they understand it's more than a static UI. It
+            demonstrates how a real control room coordinates planner agents, specialist agents,
             tools, memory, traces, costs, human-approval gates, and final artifacts — all in one
             place, with live SSE streaming and a SQLite-backed persistent run history.
           </p>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             NuvRajLabs is the company behind this build. The direction is enterprise AI
-            orchestration — demos polished enough for investors and technical enough for
-            engineering leaders.
+            orchestration — demos polished enough for investors and technical enough for engineering
+            leaders.
           </p>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -238,19 +239,19 @@ function AboutPage() {
           </div>
         </div>
         <div className="flex gap-3 shrink-0">
-          <Button asChild className="bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0">
+          <Button
+            asChild
+            className="bg-gradient-to-r from-[var(--electric)] to-[var(--violet)] text-white border-0"
+          >
             <Link to="/workflow">
               Run Demo <ArrowRight className="ml-1.5 h-4 w-4" />
             </Link>
           </Button>
           <Button asChild variant="outline" className="border-border/60">
-            <Link to="/cost">
-              Cost Analytics
-            </Link>
+            <Link to="/cost">Cost Analytics</Link>
           </Button>
         </div>
       </div>
-
     </div>
   );
 }

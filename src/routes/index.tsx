@@ -204,8 +204,8 @@ function Dashboard() {
         <div className="absolute inset-0 grid-bg opacity-30 pointer-events-none" />
         <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-[oklch(0.7_0.22_270/0.25)] blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-[oklch(0.7_0.18_210/0.2)] blur-3xl pointer-events-none" />
-        <div className="relative flex flex-col lg:flex-row lg:items-center gap-6 lg:justify-between">
-          <div className="max-w-2xl">
+        <div className="relative flex min-w-0 flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 max-w-2xl">
             <div className="flex flex-wrap items-center gap-2">
               <StatBadge tone="info">
                 <Zap className="h-3 w-3" /> Live
@@ -213,7 +213,7 @@ function Dashboard() {
               <StatBadge tone={apiHealth?.ok ? "success" : "warn"}>
                 API {apiHealth?.ok ? "online" : "fallback"}
               </StatBadge>
-              <span className="text-xs text-muted-foreground">
+              <span className="min-w-0 text-xs text-muted-foreground">
                 {apiHealth
                   ? `${apiHealth.mode} backend · ${apiHealth.scenarioCount} scenarios`
                   : "Using local deterministic scenario data"}
@@ -224,7 +224,7 @@ function Dashboard() {
               <br />
               multi-agent AI workflows.
             </h2>
-            <p className="mt-3 text-sm text-muted-foreground">
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
               OmniAgents demonstrates how modern AI systems use a planner, orchestrator, specialized
               sub-agents, tools, memory, debugging, monitoring, and cost governance to run
               production-grade workflows.
@@ -279,7 +279,7 @@ function Dashboard() {
               </span>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:min-w-[420px]">
+          <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3 lg:min-w-[420px]">
             {[
               {
                 k: "Active agent",
@@ -295,8 +295,8 @@ function Dashboard() {
               { k: "Models", v: "4" },
             ].map((s) => (
               <div key={s.k} className="rounded-xl glass p-3 text-center min-w-0">
-                <div className="truncate text-base font-semibold sm:text-2xl">{s.v}</div>
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                <div className="truncate text-sm font-semibold sm:text-2xl">{s.v}</div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground sm:text-[11px] sm:tracking-[0.16em]">
                   {s.k}
                 </div>
               </div>
@@ -441,7 +441,7 @@ function Dashboard() {
       </Panel>
 
       {/* KPI grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 lg:gap-4">
         {stats.map((s) => {
           const Icon = s.icon;
           return (

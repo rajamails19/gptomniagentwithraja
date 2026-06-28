@@ -191,18 +191,24 @@ function seedMemoriesIfNeeded(now: string) {
     .run();
 }
 
-// Seed one pending demo approval so the gate is always visible on cold start.
-// This is idempotent: if a pending approval already exists for the demo run, skip.
+// Seed one pending demo approval so the gate is visible on cold start.
+// If a prior seeded approval was already decided, create one new pending request.
 function seedDemoApprovalIfNeeded(now: string) {
   const DEMO_RUN_ID = "exec_8a22-demo-approval";
   const DEMO_SCENARIO_ID = "payments-api-docs";
 
-  const existing = db
+  const pendingApproval = db
     .select()
     .from(approvalRequestsTable)
     .all()
     .find((r) => r.runId === DEMO_RUN_ID && r.status === "pending");
-  if (existing) return;
+  if (pendingApproval) return;
+
+  const fixedSeedApproval = db
+    .select()
+    .from(approvalRequestsTable)
+    .where(eq(approvalRequestsTable.id, "approval_demo_seed"))
+    .get();
 
   // Ensure the demo run row exists (the approval has a run_id FK expectation)
   const runExists = db
@@ -237,7 +243,7 @@ function seedDemoApprovalIfNeeded(now: string) {
           filename: "payments-api-docs.md",
           sizeLabel: "12 KB",
           status: "draft",
-          approvedBy: null,
+          approvedBy: "Pending reviewer",
         }),
         startedAt: now,
         completedAt: null,
@@ -250,7 +256,7 @@ function seedDemoApprovalIfNeeded(now: string) {
 
   db.insert(approvalRequestsTable)
     .values({
-      id: "approval_demo_seed",
+      id: fixedSeedApproval ? `approval_demo_seed_${Date.now()}` : "approval_demo_seed",
       runId: DEMO_RUN_ID,
       scenarioId: DEMO_SCENARIO_ID,
       agentId: "reviewer",

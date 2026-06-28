@@ -32,7 +32,11 @@ const DEFAULTS: ApiSettings = {
 export class SettingsRepository {
   get(): ApiSettings {
     try {
-      const row = db.select().from(settingsTable).all().find((r) => r.key === "workspace");
+      const row = db
+        .select()
+        .from(settingsTable)
+        .all()
+        .find((r) => r.key === "workspace");
       if (!row) return DEFAULTS;
       const parsed = JSON.parse(row.valueJson) as Partial<ApiSettings>;
       return {

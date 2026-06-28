@@ -1,5 +1,5 @@
 import type { ApiApprovalRequest } from "@/lib/api/schemas";
-import { approveApproval, getApprovals, rejectApproval } from "@/lib/api/client";
+import { approveApproval, getApprovals, getRunApprovals, rejectApproval } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +20,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 type Decision = "approve" | "reject";
@@ -68,7 +68,9 @@ function ArtifactPreview({ text }: { text: string }) {
   const isLong = text.length > 180;
   return (
     <div>
-      <p className={`text-xs text-foreground/80 leading-relaxed ${expanded ? "" : "line-clamp-2"}`}>
+      <p
+        className={`break-words text-xs text-foreground/80 leading-relaxed ${expanded ? "" : "line-clamp-2"}`}
+      >
         {text}
       </p>
       {isLong && (
@@ -233,7 +235,7 @@ function RecentDecisions({ decisions }: { decisions: ApiApprovalRequest[] }) {
   );
 }
 
-export function ApprovalsPanel() {
+export function ApprovalsPanel({ runId }: { runId?: string | null }) {
   const [approvals, setApprovals] = useState<ApiApprovalRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingDecision, setPendingDecision] = useState<PendingDecision | null>(null);
@@ -243,22 +245,22 @@ export function ApprovalsPanel() {
     approval: ApiApprovalRequest;
   } | null>(null);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     try {
-      const next = await getApprovals();
+      const next = runId ? await getRunApprovals(runId) : await getApprovals();
       setApprovals(next);
     } catch {
       setApprovals([]);
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [runId]);
 
   useEffect(() => {
     void refresh();
     const timer = window.setInterval(() => void refresh(), 4000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [refresh]);
 
   const pending = approvals.filter((a) => a.status === "pending");
   const decided = approvals.filter((a) => a.status === "approved" || a.status === "rejected");
@@ -302,7 +304,7 @@ export function ApprovalsPanel() {
       />
 
       <Panel className="border-[oklch(0.82_0.17_75/0.22)] bg-[oklch(0.82_0.17_75/0.06)]">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           {/* Header */}
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -313,12 +315,14 @@ export function ApprovalsPanel() {
               </StatBadge>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Scenario policies pause sensitive releases before final artifact publishing.
+              {runId
+                ? "Showing approval gates for the active workflow run."
+                : "Scenario policies pause sensitive releases before final artifact publishing."}
             </p>
           </div>
 
           {/* Right column */}
-          <div className="w-full lg:max-w-3xl space-y-2">
+          <div className="w-full min-w-0 space-y-2 lg:max-w-3xl">
             {/* Post-decision banner */}
             {lastDecision && (
               <div
@@ -358,10 +362,12 @@ export function ApprovalsPanel() {
                     className={`rounded-xl border ${border} ${bg} p-4 space-y-3`}
                   >
                     {/* Top row: badges + action label */}
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
                       <StatBadge tone={badge}>{approval.riskLevel} risk</StatBadge>
-                      <span className="text-sm font-semibold">{approval.requestedAction}</span>
-                      <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <span className="min-w-0 flex-1 text-sm font-semibold">
+                        {approval.requestedAction}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground sm:ml-auto">
                         <Clock className="h-3 w-3" />
                         {timeAgo(approval.createdAt)}
                       </span>
@@ -371,7 +377,7 @@ export function ApprovalsPanel() {
                     <p className="text-xs text-muted-foreground">{approval.reason}</p>
 
                     {/* Artifact preview with expand */}
-                    <div className="rounded-md border border-white/8 bg-black/20 px-3 py-2">
+                    <div className="min-w-0 rounded-md border border-white/8 bg-black/20 px-3 py-2">
                       <div className="mb-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
                         Artifact preview
                       </div>
@@ -379,11 +385,11 @@ export function ApprovalsPanel() {
                     </div>
 
                     {/* Action buttons */}
-                    <div className="flex justify-end gap-2 pt-1">
+                    <div className="grid grid-cols-1 gap-2 pt-1 sm:flex sm:justify-end">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-[var(--destructive)]/40 text-[var(--destructive)] hover:bg-[var(--destructive)]/10 hover:border-[var(--destructive)]/70"
+                        className="w-full border-[var(--destructive)]/40 text-[var(--destructive)] hover:bg-[var(--destructive)]/10 hover:border-[var(--destructive)]/70 sm:w-auto"
                         onClick={() => openDialog(approval, "reject")}
                       >
                         <XCircle className="h-3.5 w-3.5 mr-1.5" />
@@ -391,7 +397,7 @@ export function ApprovalsPanel() {
                       </Button>
                       <Button
                         size="sm"
-                        className="bg-[var(--emerald)] hover:bg-[var(--emerald)]/90 text-black border-0 shadow-[0_6px_20px_-8px_oklch(0.78_0.17_165/0.8)]"
+                        className="w-full bg-[var(--emerald)] hover:bg-[var(--emerald)]/90 text-black border-0 shadow-[0_6px_20px_-8px_oklch(0.78_0.17_165/0.8)] sm:w-auto"
                         onClick={() => openDialog(approval, "approve")}
                       >
                         <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />

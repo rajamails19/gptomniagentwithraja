@@ -139,11 +139,13 @@ export function PageHeader({
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+        <h1 className="break-words text-2xl sm:text-3xl font-semibold tracking-tight">
           <span className="text-gradient">{title}</span>
         </h1>
         {description && (
-          <p className="mt-1.5 text-sm text-muted-foreground max-w-2xl">{description}</p>
+          <p className="mt-1.5 max-w-2xl break-words text-sm leading-6 text-muted-foreground">
+            {description}
+          </p>
         )}
       </div>
       {actions && (

@@ -78,7 +78,7 @@ function CostPage() {
         setApiRuns(runs);
         // Auto-select the most recent completed run
         const first = runs.find((r) => r.status === "completed") ?? runs[0];
-        if (first && !selectedRunId) setSelectedRunId(first.id);
+        if (first) setSelectedRunId((current) => current ?? first.id);
       })
       .catch(() => {});
   }, []);
@@ -87,11 +87,15 @@ function CostPage() {
   const selectedRun = apiRuns.find((r) => r.id === selectedRunId);
   const scenario =
     demo.scenarios.find((s) => s.id === selectedRun?.scenarioId) ?? demo.selectedScenario;
+  const activeCostSummary = selectedRun?.costSummary ?? scenario.costSummary;
+  const activeRunCost = selectedRun?.cost ?? activeCostSummary.totalCost;
+  const activeRunTokens = selectedRun?.tokens ?? activeCostSummary.totalTokens;
 
   // --- Per-agent breakdown ---
   const agentSteps = scenario.steps.filter((s) => s.kind === "agent");
-  const totalCost = scenario.costSummary.totalCost;
-  const totalTokens = scenario.costSummary.totalTokens;
+  const totalCost = activeRunCost;
+  const totalTokens = activeRunTokens;
+  const attributionCost = scenario.costSummary.totalCost;
 
   const agentRows = agentSteps.map((step) => ({
     label: step.label.replace(" Agent", ""),
@@ -100,7 +104,7 @@ function CostPage() {
     cost: step.cost,
     tokens: step.tokens,
     latencyMs: step.latencyMs,
-    pct: totalCost > 0 ? (step.cost / totalCost) * 100 : 0,
+    pct: attributionCost > 0 ? (step.cost / attributionCost) * 100 : 0,
   }));
   agentRows.sort((a, b) => b.cost - a.cost);
 
@@ -118,7 +122,7 @@ function CostPage() {
       model,
       tokens: data.tokens,
       cost: data.cost,
-      pct: totalCost > 0 ? (data.cost / totalCost) * 100 : 0,
+      pct: attributionCost > 0 ? (data.cost / attributionCost) * 100 : 0,
     }))
     .sort((a, b) => b.cost - a.cost);
 
@@ -132,42 +136,43 @@ function CostPage() {
   }));
 
   // --- Scenario comparison (workflow level) ---
-  const scenarioWorkflowCost = demo.scenarios.map((item) => ({
-    name: item.title.replace(" Generation", "").replace(" Investigation", " IR"),
-    cost: item.costSummary.totalCost,
-  }));
+  const scenarioWorkflowCost =
+    apiRuns.length > 0
+      ? apiRuns.slice(-10).map((run) => ({
+          name: run.workflow.replace(" Generation", "").replace(" Investigation", " IR"),
+          cost: run.cost,
+        }))
+      : demo.scenarios.map((item) => ({
+          name: item.title.replace(" Generation", "").replace(" Investigation", " IR"),
+          cost: item.costSummary.totalCost,
+        }));
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Cost Analytics"
         description="Track, attribute and optimize spend across agents, models and workflows."
+        actions={
+          <StatBadge tone={apiRuns.length > 0 ? "success" : "warn"}>
+            {apiRuns.length > 0 ? "Backend runs" : "Scenario fallback"}
+          </StatBadge>
+        }
       />
 
       {/* Top KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi
-          icon={DollarSign}
-          k="Total cost"
-          v={`$${totalCost.toFixed(2)}`}
-          delta="this run"
-        />
-        <Kpi
-          icon={Cpu}
-          k="Tokens"
-          v={`${(totalTokens / 1000).toFixed(1)}K`}
-          delta="est."
-        />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+        <Kpi icon={DollarSign} k="Total cost" v={`$${totalCost.toFixed(2)}`} delta="this run" />
+        <Kpi icon={Cpu} k="Tokens" v={`${(totalTokens / 1000).toFixed(1)}K`} delta="est." />
         <Kpi
           icon={Clock}
           k="Latency"
-          v={`${(scenario.costSummary.latencyMs / 1000).toFixed(0)}s`}
+          v={`${(activeCostSummary.latencyMs / 1000).toFixed(0)}s`}
           delta="wall time"
         />
         <Kpi
           icon={Zap}
           k="Model savings"
-          v={`${scenario.costSummary.modelSavingsPercent}%`}
+          v={`${activeCostSummary.modelSavingsPercent}%`}
           delta="vs GPT-4o baseline"
           tone="success"
         />
@@ -218,17 +223,20 @@ function CostPage() {
         <Panel className="ring-1 ring-[var(--electric)]/20">
           {/* Header */}
           <button
-            className="w-full flex items-center justify-between"
+            className="flex w-full min-w-0 items-center justify-between"
             onClick={() => setDrillOpen((o) => !o)}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               <div className="h-8 w-8 rounded-lg bg-[var(--electric)]/10 grid place-items-center">
                 <DollarSign className="h-4 w-4 text-[var(--electric)]" />
               </div>
-              <div className="text-left">
+              <div className="min-w-0 text-left">
                 <div className="text-sm font-semibold font-mono">{selectedRun.id}</div>
                 <div className="text-xs text-muted-foreground">
                   {selectedRun.workflow} · {selectedRun.duration} · {selectedRun.started}
+                </div>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  Persisted run totals drive KPIs; static scenario steps provide agent attribution.
                 </div>
               </div>
             </div>
@@ -257,14 +265,14 @@ function CostPage() {
                 <div className="space-y-2">
                   {agentRows.map((row, i) => (
                     <div key={row.agent}>
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <div className="flex items-center gap-2">
+                      <div className="mb-1 flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
                           <span className="font-medium">{row.label}</span>
                           <span className="text-[10px] px-1.5 py-px rounded bg-white/[0.06] text-muted-foreground font-mono">
                             {row.model}
                           </span>
                         </div>
-                        <div className="flex items-center gap-3 tabular-nums">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
                           <span className="text-muted-foreground">
                             {row.tokens.toLocaleString()} tok
                           </span>
@@ -342,9 +350,7 @@ function CostPage() {
                           <span className="font-mono text-[10px] text-muted-foreground flex-1 truncate">
                             {row.model}
                           </span>
-                          <span className="font-semibold tabular-nums">
-                            {row.pct.toFixed(0)}%
-                          </span>
+                          <span className="font-semibold tabular-nums">{row.pct.toFixed(0)}%</span>
                         </div>
                       ))}
                     </div>
@@ -418,14 +424,8 @@ function CostPage() {
                   label="Manual hours saved"
                   value={scenario.costSummary.estimatedManualHours}
                 />
-                <MiniStat
-                  label="Agents used"
-                  value={String(agentSteps.length)}
-                />
-                <MiniStat
-                  label="Tool calls"
-                  value={String(toolRows.length)}
-                />
+                <MiniStat label="Agents used" value={String(agentSteps.length)} />
+                <MiniStat label="Tool calls" value={String(toolRows.length)} />
               </div>
             </div>
           )}
@@ -446,12 +446,7 @@ function CostPage() {
                 tickLine={false}
                 axisLine={false}
               />
-              <YAxis
-                stroke="oklch(0.7 0.03 256)"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-              />
+              <YAxis stroke="oklch(0.7 0.03 256)" fontSize={11} tickLine={false} axisLine={false} />
               <Tooltip contentStyle={tt} />
               <Line
                 type="monotone"
@@ -518,12 +513,17 @@ function CostPage() {
                   tickLine={false}
                   axisLine={false}
                 />
-                <Tooltip contentStyle={tt} formatter={(v: number) => [`$${v.toFixed(3)}`, "cost"]} />
+                <Tooltip
+                  contentStyle={tt}
+                  formatter={(v: number) => [`$${v.toFixed(3)}`, "cost"]}
+                />
                 <Bar dataKey="cost" radius={[4, 4, 0, 0]}>
                   {agentRows.map((row, i) => (
                     <Cell
                       key={row.agent}
-                      fill={MODEL_COLORS[row.model] ?? MODEL_COLOR_LIST[i % MODEL_COLOR_LIST.length]}
+                      fill={
+                        MODEL_COLORS[row.model] ?? MODEL_COLOR_LIST[i % MODEL_COLOR_LIST.length]
+                      }
                     />
                   ))}
                 </Bar>
@@ -577,7 +577,7 @@ function Kpi({
         <Icon className="h-3.5 w-3.5 text-muted-foreground" />
         <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">{k}</div>
       </div>
-      <div className="flex items-baseline justify-between">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="text-2xl font-semibold">{v}</div>
         <StatBadge tone={tone}>{delta}</StatBadge>
       </div>

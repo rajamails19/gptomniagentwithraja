@@ -109,7 +109,7 @@ export function Sidebar() {
         </Link>
       </nav>
 
-<div className="mx-3 mb-3 rounded-xl glass p-3">
+      <div className="mx-3 mb-3 rounded-xl glass p-3">
         <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">System</div>
         <div className="mt-1 flex items-center gap-2 text-xs">
           <span className="relative flex h-2 w-2">

@@ -153,17 +153,26 @@ function WorkflowPage() {
   async function triggerApprovalGate() {
     setIsTriggeringGate(true);
     try {
-      const run = await createRun("payments-api-docs");
-      await startRun(run.id);
+      const useActiveRun = Boolean(demo.activeBackendRunId && !demo.isComplete);
+      const runId = useActiveRun
+        ? demo.activeBackendRunId!
+        : (await createRun(demo.selectedScenarioId || "payments-api-docs")).id;
+
+      if (!useActiveRun) {
+        await startRun(runId);
+      }
+
       // Poll until waiting_for_approval (max ~8s)
       for (let i = 0; i < 8; i++) {
         await new Promise((r) => setTimeout(r, 1000));
-        const status = await getRunStatus(run.id);
+        const status = await getRunStatus(runId);
         if (status.run?.status === "waiting_for_approval") break;
       }
       setApprovalsPanelKey((k) => k + 1);
       toast.success("Approval gate triggered", {
-        description: "The panel now shows a pending approval ready to action.",
+        description: useActiveRun
+          ? "The active workflow is waiting for human review."
+          : "A demo workflow is waiting for human review.",
       });
     } catch {
       toast.error("Could not trigger approval gate", {
@@ -239,7 +248,7 @@ function WorkflowPage() {
         }
       />
 
-      <ApprovalsPanel key={approvalsPanelKey} />
+      <ApprovalsPanel key={approvalsPanelKey} runId={demo.activeBackendRunId} />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-4">
         <Panel className="p-0 overflow-hidden">
