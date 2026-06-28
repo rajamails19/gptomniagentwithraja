@@ -45,18 +45,19 @@ import {
   StatusBadge,
   StatusDot,
 } from "@/components/ui/page";
-import { agents, dashboardSeries, modelBreakdown, recentExecutions } from "@/lib/mock-data";
+import { agents, dashboardSeries, modelBreakdown } from "@/lib/mock-data";
 import { useDemo } from "@/lib/demo-context";
 import { Button } from "@/components/ui/button";
 import {
   getHealth,
   getMcpOverview,
+  getRuns,
   getScenarios,
   type ApiHealth,
   type ApiMCPOverview,
 } from "@/lib/api/client";
 import { getAgentScores } from "@/lib/demo/intelligence";
-import type { ApiScenario } from "@/lib/api/schemas";
+import type { ApiRun, ApiScenario } from "@/lib/api/schemas";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -80,6 +81,7 @@ function Dashboard() {
   const [apiHealth, setApiHealth] = useState<ApiHealth | null>(null);
   const [apiScenarios, setApiScenarios] = useState<ApiScenario[] | null>(null);
   const [mcpOverview, setMcpOverview] = useState<ApiMCPOverview | null>(null);
+  const [apiRuns, setApiRuns] = useState<ApiRun[]>([]);
   const prevCompletedId = useRef<string | null>(null);
 
   // When a new run finishes, scroll to the table and pulse the new row for 2s.
@@ -87,6 +89,10 @@ function Dashboard() {
     if (demo.lastCompletedId && demo.lastCompletedId !== prevCompletedId.current) {
       prevCompletedId.current = demo.lastCompletedId;
       setHighlightId(demo.lastCompletedId);
+      // Refresh run list from DB so the newly completed run persists.
+      getRuns()
+        .then(setApiRuns)
+        .catch(() => {});
       // Wait a tick so the row mounts before scrolling.
       const scrollT = setTimeout(() => {
         executionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -101,12 +107,18 @@ function Dashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getHealth(), getScenarios(), getMcpOverview().catch(() => null)])
-      .then(([health, scenarios, mcp]) => {
+    Promise.all([
+      getHealth(),
+      getScenarios(),
+      getMcpOverview().catch(() => null),
+      getRuns().catch(() => []),
+    ])
+      .then(([health, scenarios, mcp, runs]) => {
         if (cancelled) return;
         setApiHealth(health);
         setApiScenarios(scenarios);
         setMcpOverview(mcp);
+        setApiRuns(runs);
       })
       .catch(() => {
         if (cancelled) return;
@@ -833,22 +845,33 @@ function Dashboard() {
                     </tr>
                   );
                 })}
-                {recentExecutions.map((e) => (
-                  <tr key={e.id} className="border-t border-border/60 hover:bg-white/[0.03]">
-                    <td className="py-2.5 font-mono text-xs text-muted-foreground">{e.id}</td>
-                    <td className="font-medium">{e.workflow}</td>
-                    <td>
-                      <span className="inline-flex items-center gap-1.5">
-                        <StatusBadge status={e.status} />
-                      </span>
-                    </td>
-                    <td className="text-xs tabular-nums">{e.duration}</td>
-                    <td className="text-right tabular-nums text-xs">{e.tokens.toLocaleString()}</td>
-                    <td className="text-right tabular-nums text-xs">${e.cost.toFixed(2)}</td>
-                    <td className="text-right text-xs text-muted-foreground">{e.started}</td>
-                    <td />
-                  </tr>
-                ))}
+                {apiRuns
+                  .filter((r) => !demo.completedExecutions.some((e) => e.id === r.id))
+                  .map((r) => (
+                    <tr key={r.id} className="border-t border-border/60 hover:bg-white/[0.03]">
+                      <td className="py-2.5 font-mono text-xs text-muted-foreground">{r.id}</td>
+                      <td className="font-medium">{r.workflow}</td>
+                      <td>
+                        <span className="inline-flex items-center gap-1.5">
+                          <StatusBadge status={r.status} />
+                        </span>
+                      </td>
+                      <td className="text-xs tabular-nums">{r.duration}</td>
+                      <td className="text-right tabular-nums text-xs">
+                        {r.tokens.toLocaleString()}
+                      </td>
+                      <td className="text-right tabular-nums text-xs">${r.cost.toFixed(2)}</td>
+                      <td className="text-right text-xs text-muted-foreground">{r.started}</td>
+                      <td className="text-right pl-3">
+                        <Link
+                          to="/debugger"
+                          className="text-[11px] font-medium text-[var(--electric)] hover:text-[var(--cyan)] whitespace-nowrap"
+                        >
+                          View →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
