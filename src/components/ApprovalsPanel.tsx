@@ -21,6 +21,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 type Decision = "approve" | "reject";
 
@@ -279,7 +280,13 @@ export function ApprovalsPanel() {
       }
       setLastDecision({ decision, approval });
       setPendingDecision(null);
+      toast.success(decision === "approve" ? "Run approved — execution resuming" : "Run rejected", {
+        duration: 3000,
+      });
       await refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Failed to ${decision} — ${message}`, { duration: 6000 });
     } finally {
       setIsSubmitting(false);
     }
