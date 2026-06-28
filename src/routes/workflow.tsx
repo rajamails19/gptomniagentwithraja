@@ -95,6 +95,7 @@ function WorkflowPage() {
     Array<{ ts: string; agent: string; message: string; tone: "success" }>
   >([]);
   const animationTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const liveFeedRef = useRef<HTMLDivElement>(null);
   const active = currentRun.stepRuns.find((n) => n.id === activeId) ?? currentRun.stepRuns[1];
   const activeStatus = demo.statuses[activeId];
   const activePhase = getAgentPhaseIndex(active);
@@ -107,6 +108,13 @@ function WorkflowPage() {
   const activeLogs = [...demo.logs, ...animationLogs]
     .filter((log) => log.agent === active.agent)
     .slice(-8);
+
+  // Auto-scroll live feed to bottom as new SSE events arrive
+  useEffect(() => {
+    if (liveFeedRef.current) {
+      liveFeedRef.current.scrollTop = liveFeedRef.current.scrollHeight;
+    }
+  }, [demo.liveEvents.length]);
 
   const clearWorkflowAnimation = () => {
     animationTimers.current.forEach(clearTimeout);
@@ -665,6 +673,79 @@ function WorkflowPage() {
         </Panel>
       </div>
 
+      {/* Live SSE event feed — visible while running or when events exist */}
+      {(demo.isRunning || demo.liveEvents.length > 0) && (
+        <Panel className={demo.isRunning ? "ring-1 ring-[var(--electric)]/30" : ""}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              {demo.isRunning && (
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--emerald)] opacity-60 animate-ping" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--emerald)]" />
+                </span>
+              )}
+              <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
+                Live event stream
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {demo.liveEvents.length} events
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full font-mono ${
+                  demo.liveConnectionStatus === "connected"
+                    ? "bg-[var(--emerald)]/15 text-[var(--emerald)]"
+                    : demo.liveConnectionStatus === "connecting"
+                      ? "bg-[var(--amber)]/15 text-[var(--amber)]"
+                      : demo.liveConnectionStatus === "fallback"
+                        ? "bg-[var(--amber)]/15 text-[var(--amber)]"
+                        : "bg-border text-muted-foreground"
+                }`}
+              >
+                SSE {demo.liveConnectionStatus}
+              </span>
+            </div>
+          </div>
+
+          <div
+            ref={liveFeedRef}
+            className="space-y-0.5 max-h-56 overflow-y-auto pr-1 font-mono text-[11px]"
+          >
+            {demo.liveEvents.length === 0 ? (
+              <div className="text-muted-foreground/50 text-center py-6 text-xs">
+                Waiting for events…
+              </div>
+            ) : (
+              [...demo.liveEvents].reverse().map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-start gap-2 py-1 border-b border-border/30 animate-fade-in"
+                >
+                  <span className="text-muted-foreground/50 shrink-0 tabular-nums">
+                    {event.timestamp.slice(11, 19)}
+                  </span>
+                  <span
+                    className={`shrink-0 px-1.5 py-px rounded text-[9px] font-semibold uppercase tracking-wide ${liveEventColor(event.type)}`}
+                  >
+                    {event.type.replace(".", " ")}
+                  </span>
+                  <span className="text-muted-foreground truncate">
+                    {String(
+                      event.payload?.agent ??
+                        event.payload?.label ??
+                        event.payload?.stepId ??
+                        event.payload?.status ??
+                        "",
+                    )}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </Panel>
+      )}
+
       {(demo.isComplete || currentRun.traceEvents.length > 0) && (
         <Panel>
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -719,6 +800,17 @@ function WorkflowPage() {
       )}
     </div>
   );
+}
+
+function liveEventColor(type: string): string {
+  if (type.startsWith("run.")) return "bg-[var(--electric)]/15 text-[var(--electric)]";
+  if (type.startsWith("step.")) return "bg-[var(--violet)]/15 text-[var(--violet)]";
+  if (type.startsWith("agent.")) return "bg-[var(--cyan)]/15 text-[var(--cyan)]";
+  if (type.startsWith("tool.")) return "bg-[var(--amber)]/15 text-[var(--amber)]";
+  if (type.startsWith("memory.")) return "bg-[var(--emerald)]/15 text-[var(--emerald)]";
+  if (type.startsWith("approval.")) return "bg-orange-400/15 text-orange-400";
+  if (type.startsWith("artifact.")) return "bg-[var(--emerald)]/15 text-[var(--emerald)]";
+  return "bg-border text-muted-foreground";
 }
 
 function Field({ label, value }: { label: string; value: string }) {

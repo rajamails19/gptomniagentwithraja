@@ -14,6 +14,42 @@ import { getExecutionLogs, recordExecutionLog } from "../utils/execution-logger"
 const STEP_DURATION_MS = 900;
 
 export class WorkflowExecutionService {
+  /** Tracks run IDs that have an active server-side execution loop. */
+  private activeLoops = new Set<string>();
+
+  /**
+   * Proactively advance steps and push SSE events on a timer,
+   * so the frontend SSE subscriber gets updates without polling.
+   * Uses the same time-based advanceRun logic (idempotent event IDs prevent duplicates).
+   */
+  private scheduleExecution(runId: string, scenario: DemoScenario) {
+    if (this.activeLoops.has(runId)) return;
+    this.activeLoops.add(runId);
+
+    const totalTicks = scenario.steps.length + 2; // extra ticks for approval/completion
+    let tick = 0;
+
+    const advance = () => {
+      tick++;
+      if (tick > totalTicks) {
+        this.activeLoops.delete(runId);
+        return;
+      }
+
+      const run = runRepository.findById(runId);
+      if (!run || (run.status !== "running" && run.status !== "queued")) {
+        this.activeLoops.delete(runId);
+        return;
+      }
+
+      void this.advanceRun(runId)
+        .then(() => setTimeout(advance, STEP_DURATION_MS))
+        .catch(() => this.activeLoops.delete(runId));
+    };
+
+    setTimeout(advance, STEP_DURATION_MS);
+  }
+
   createRun(payload: { scenarioId?: string }): ApiRun {
     const scenario = payload.scenarioId
       ? scenarioRepository.findById(payload.scenarioId)
@@ -70,6 +106,10 @@ export class WorkflowExecutionService {
       `evt_${runId}_started`,
     );
 
+    // Kick off proactive server-side execution loop so SSE subscribers
+    // receive step events without needing to poll getRunStatus.
+    this.scheduleExecution(runId, scenario);
+
     return this.getRunStatus(runId);
   }
 
@@ -77,6 +117,7 @@ export class WorkflowExecutionService {
     const run = runRepository.findById(runId);
     if (!run) throw notFound("Run not found");
 
+    this.activeLoops.delete(runId); // stop proactive loop
     runRepository.updateLifecycle(runId, {
       status: "cancelled",
       currentStepId: null,
