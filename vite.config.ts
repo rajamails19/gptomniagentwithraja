@@ -9,6 +9,11 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 export default defineConfig({
   nitro: {
     preset: "vercel",
+    // better-sqlite3 ships a native .node binary — it cannot be bundled by Rollup/Nitro.
+    // Mark it (and its peer drizzle adapter) as externals so Vercel installs them at runtime.
+    externals: {
+      external: ["better-sqlite3", "drizzle-orm/better-sqlite3"],
+    },
   },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
