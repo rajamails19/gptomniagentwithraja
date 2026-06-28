@@ -117,6 +117,12 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="dark">
       <head>
+        {/* Inline script prevents flash-of-wrong-theme by reading localStorage before first paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var t=localStorage.getItem('omniagents-theme');if(t==='light'){document.documentElement.classList.remove('dark')}else{document.documentElement.classList.add('dark')}})()`,
+          }}
+        />
         <HeadContent />
       </head>
       <body>
@@ -140,7 +146,7 @@ function RootComponent() {
             <main className="flex-1 p-3 sm:p-4 lg:p-6 min-w-0">
               <Outlet />
             </main>
-            <footer className="h-10 shrink-0 bg-black/70 border-t border-border/60 px-4 lg:px-6 flex items-center justify-end text-[11px] text-muted-foreground">
+            <footer className="h-10 shrink-0 bg-background/80 border-t border-border/60 px-4 lg:px-6 flex items-center justify-end text-[11px] text-muted-foreground">
               © 2026 OmniAgents · Built by Raja · NuvRajLabs
             </footer>
           </div>

@@ -23,6 +23,8 @@ import {
   Wrench,
   DollarSign,
   Settings,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
@@ -32,6 +34,7 @@ import { useDemo } from "@/lib/demo-context";
 import { openPresentation } from "@/lib/presentation-store";
 import { openVisualGuide } from "@/lib/visual-guide-store";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/lib/use-theme";
 
 const envs = ["Dev", "Stage", "Prod"] as const;
 const mobileNav = [
@@ -54,6 +57,7 @@ export function Topbar() {
   const [open, setOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const demo = useDemo();
+  const { isDark, toggle } = useTheme();
   const lastToastEvent = useRef<string | null>(null);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
@@ -223,6 +227,19 @@ export function Topbar() {
         >
           <Bell className="h-4 w-4 text-muted-foreground" />
           <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-[var(--amber)]" />
+        </button>
+
+        <button
+          onClick={toggle}
+          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          className="h-9 w-9 hidden sm:grid place-items-center rounded-lg transition-all duration-200 hover:bg-accent focus-visible:ring-2 focus-visible:ring-[var(--ring)]/55"
+          title={isDark ? "Light mode" : "Dark mode"}
+        >
+          {isDark ? (
+            <Sun className="h-4 w-4 text-[var(--amber)]" />
+          ) : (
+            <Moon className="h-4 w-4 text-[var(--electric)]" />
+          )}
         </button>
 
         <div className="h-9 pl-1 pr-3 hidden sm:flex items-center gap-2 rounded-lg glass">
