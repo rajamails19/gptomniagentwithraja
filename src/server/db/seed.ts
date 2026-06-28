@@ -231,7 +231,7 @@ function seedDemoApprovalIfNeeded(now: string) {
           modelSavingsPercent: 32,
           latencyMs: 58000,
         }),
-        finalArtifactJson: null,
+        finalArtifactJson: "null",
         startedAt: now,
         completedAt: null,
         cancelledAt: null,
