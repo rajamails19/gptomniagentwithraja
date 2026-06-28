@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Play, RotateCcw, Rewind, FileText, Bug, CheckCircle2 } from "lucide-react";
+import { Play, RotateCcw, Rewind, FileText, Bug, CheckCircle2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ApprovalsPanel } from "@/components/ApprovalsPanel";
+import { createRun, startRun, getRunStatus } from "@/lib/api/client";
+import { toast } from "sonner";
 import {
   EmptyState,
   PageHeader,
@@ -85,6 +87,8 @@ function WorkflowPage() {
   const currentRun = demo.currentRun;
   const [activeId, setActiveId] = useState<DemoNodeId>("planner");
   const [showOutput, setShowOutput] = useState(false);
+  const [isTriggeringGate, setIsTriggeringGate] = useState(false);
+  const [approvalsPanelKey, setApprovalsPanelKey] = useState(0);
   const [animatedNodeId, setAnimatedNodeId] = useState<DemoNodeId | null>(null);
   const [animatedNodeIds, setAnimatedNodeIds] = useState<Set<DemoNodeId>>(() => new Set());
   const [animationLogs, setAnimationLogs] = useState<
@@ -138,6 +142,30 @@ function WorkflowPage() {
 
   useEffect(() => () => clearWorkflowAnimation(), []);
 
+  async function triggerApprovalGate() {
+    setIsTriggeringGate(true);
+    try {
+      const run = await createRun("payments-api-docs");
+      await startRun(run.id);
+      // Poll until waiting_for_approval (max ~8s)
+      for (let i = 0; i < 8; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        const status = await getRunStatus(run.id);
+        if (status.run?.status === "waiting_for_approval") break;
+      }
+      setApprovalsPanelKey((k) => k + 1);
+      toast.success("Approval gate triggered", {
+        description: "The panel now shows a pending approval ready to action.",
+      });
+    } catch {
+      toast.error("Could not trigger approval gate", {
+        description: "Make sure the dev server is running and the API is online.",
+      });
+    } finally {
+      setIsTriggeringGate(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -190,11 +218,20 @@ function WorkflowPage() {
                 {showOutput ? "Hide Artifact" : "View Final Artifact"}
               </Button>
             )}
+            <Button
+              variant="outline"
+              onClick={() => void triggerApprovalGate()}
+              disabled={isTriggeringGate}
+              className="w-full sm:w-auto border-[var(--amber)]/40 text-[var(--amber)] hover:bg-[var(--amber)]/10 hover:border-[var(--amber)]/70"
+            >
+              <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
+              {isTriggeringGate ? "Triggering…" : "Trigger Approval Gate"}
+            </Button>
           </div>
         }
       />
 
-      <ApprovalsPanel />
+      <ApprovalsPanel key={approvalsPanelKey} />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-4">
         <Panel className="p-0 overflow-hidden">
