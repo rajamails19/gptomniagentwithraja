@@ -4,6 +4,7 @@ import { DEMO_SCENARIOS } from "@/lib/demo/seed-data";
 import { createTrace } from "../models/mappers";
 import {
   agentsTable,
+  approvalRequestsTable,
   artifactsTable,
   memoriesTable,
   runsTable,
@@ -132,6 +133,7 @@ export function seedDatabaseIfNeeded() {
 
   seedMissingWorkflowSteps(now);
   seedMemoriesIfNeeded(now);
+  seedDemoApprovalIfNeeded(now);
 
   seeded = true;
   return getSeedStatus();
@@ -186,6 +188,76 @@ function seedMemoriesIfNeeded(now: string) {
         updatedAt: now,
       },
     ])
+    .run();
+}
+
+// Seed one pending demo approval so the gate is always visible on cold start.
+// This is idempotent: if a pending approval already exists for the demo run, skip.
+function seedDemoApprovalIfNeeded(now: string) {
+  const DEMO_RUN_ID = "exec_8a22-demo-approval";
+  const DEMO_SCENARIO_ID = "payments-api-docs";
+
+  const existing = db
+    .select()
+    .from(approvalRequestsTable)
+    .all()
+    .find((r) => r.runId === DEMO_RUN_ID && r.status === "pending");
+  if (existing) return;
+
+  // Ensure the demo run row exists (the approval has a run_id FK expectation)
+  const runExists = db
+    .select()
+    .from(runsTable)
+    .all()
+    .find((r) => r.id === DEMO_RUN_ID);
+
+  if (!runExists) {
+    db.insert(runsTable)
+      .values({
+        id: DEMO_RUN_ID,
+        scenarioId: DEMO_SCENARIO_ID,
+        workflow: "API Documentation Generation",
+        status: "waiting_for_approval",
+        duration: "58s",
+        tokens: 61578,
+        cost: 1.12,
+        started: "seeded",
+        currentStepId: "reviewer",
+        costSummaryJson: JSON.stringify({
+          runId: DEMO_RUN_ID,
+          totalCost: 1.12,
+          totalTokens: 61578,
+          estimatedManualHours: "4-6h",
+          modelSavingsPercent: 32,
+          latencyMs: 58000,
+        }),
+        finalArtifactJson: null,
+        startedAt: now,
+        completedAt: null,
+        cancelledAt: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+  }
+
+  db.insert(approvalRequestsTable)
+    .values({
+      id: "approval_demo_seed",
+      runId: DEMO_RUN_ID,
+      scenarioId: DEMO_SCENARIO_ID,
+      agentId: "reviewer",
+      stepId: "reviewer",
+      status: "pending",
+      reason: "Cost threshold and final artifact publishing require human review before release.",
+      riskLevel: "medium",
+      requestedAction: "Approve final artifact release",
+      artifactPreview:
+        "Payments API Documentation — covers POST /payments/intents, GET /payments/:id, webhook events, error codes, and SDK examples for JS and Python.",
+      reviewerNote: null,
+      createdAt: now,
+      decidedAt: null,
+    })
     .run();
 }
 
