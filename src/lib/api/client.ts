@@ -10,7 +10,7 @@ import type {
   UpdateMemoryRequest,
 } from "./schemas";
 
-export type { ApiApprovalRequest } from "./schemas";
+export type { ApiApprovalRequest, ApiRun } from "./schemas";
 
 export type ApiHealth = {
   ok: boolean;
@@ -452,6 +452,35 @@ export async function getMcpOverview() {
 export async function getMcpServers() {
   const data = await requestJson<{ servers: ApiMCPServer[] }>("/api/v1/mcp/servers");
   return data.servers;
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+
+export type ApiSettings = {
+  workspaceName: string;
+  defaultEnvironment: string;
+  region: string;
+  storageMode: string;
+  apiVersion: string;
+  guardrails: {
+    piiRedaction: boolean;
+    promptInjectionGuard: boolean;
+    toolAllowList: boolean;
+    autoCostCap: boolean;
+  };
+};
+
+export async function getSettings(): Promise<ApiSettings> {
+  const data = await requestJson<{ settings: ApiSettings }>("/api/v1/settings");
+  return data.settings;
+}
+
+export async function patchSettings(patch: Partial<ApiSettings>): Promise<ApiSettings> {
+  const data = await requestJson<{ settings: ApiSettings }>("/api/v1/settings", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return data.settings;
 }
 
 export async function getMcpTools() {

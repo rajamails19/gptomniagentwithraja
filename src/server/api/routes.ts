@@ -551,6 +551,17 @@ export const apiRoutes: ApiRoute[] = [
     },
   },
   {
+    method: "PATCH",
+    path: "/api/v1/settings",
+    summary: "Persist workspace settings changes to SQLite.",
+    handler: async ({ request, requestId }) => {
+      const body = await request.json().catch(() => ({}));
+      const updated = settingsService.updateSettings(body as Parameters<typeof settingsService.updateSettings>[0]);
+      const data = settingsResponseSchema.parse({ settings: updated });
+      return json(data, requestId);
+    },
+  },
+  {
     method: "GET",
     path: "/api/v1/developer/routes",
     summary: "List registered API routes for the hidden developer explorer.",
