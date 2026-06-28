@@ -118,18 +118,23 @@ function DebuggerPage() {
         title="Debugger"
         description="Trace every agent decision: prompt, tool call, retry, memory read, and approved artifact."
         actions={
-          <select
-            value={effectiveExec}
-            onChange={(e) => setExec(e.target.value)}
-            aria-label="Select execution trace"
-            className="h-9 w-full rounded-lg border border-border/60 bg-white/5 px-3 text-xs transition focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/55 sm:w-auto sm:max-w-[60vw]"
-          >
-            {executions.map((e) => (
-              <option key={e.id} value={e.id} className="bg-popover">
-                {e.id} · {e.workflow}
-              </option>
-            ))}
-          </select>
+          <>
+            <StatBadge tone={demo.liveConnectionStatus === "connected" ? "success" : "warn"}>
+              SSE {demo.liveConnectionStatus}
+            </StatBadge>
+            <select
+              value={effectiveExec}
+              onChange={(e) => setExec(e.target.value)}
+              aria-label="Select execution trace"
+              className="h-9 w-full rounded-lg border border-border/60 bg-white/5 px-3 text-xs transition focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/55 sm:w-auto sm:max-w-[60vw]"
+            >
+              {executions.map((e) => (
+                <option key={e.id} value={e.id} className="bg-popover">
+                  {e.id} · {e.workflow}
+                </option>
+              ))}
+            </select>
+          </>
         }
       />
 

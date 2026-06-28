@@ -130,6 +130,14 @@ export type ApiToolExecution = {
   createdAt: string;
 };
 
+export type ApiRunEvent = {
+  id: string;
+  runId: string;
+  type: string;
+  timestamp: string;
+  payload: Record<string, unknown>;
+};
+
 export interface ApiOrchestrationContext {
   runId: string;
   currentStep: string;
@@ -375,6 +383,13 @@ export async function getExecutionLogs() {
     developerRequestInit(),
   );
   return data.logs;
+}
+
+export async function getDeveloperEvents() {
+  return requestJson<{ events: ApiRunEvent[]; types: string[] }>(
+    "/api/v1/developer/events",
+    developerRequestInit(),
+  );
 }
 
 export async function getTools() {

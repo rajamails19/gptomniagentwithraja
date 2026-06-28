@@ -15,7 +15,9 @@ import {
   getToolExecutions,
   getTools,
   getDeveloperToken,
+  getDeveloperEvents,
   saveDeveloperToken,
+  type ApiRunEvent,
   type ApiHealth,
   type ApiApprovalRequest,
   type ApiMCPOverview,
@@ -39,6 +41,7 @@ const sampleRequests = [
   'curl -X POST http://localhost:8080/api/v1/runs -H "content-type: application/json" -d \'{"scenarioId":"pull-request-review"}\'',
   "curl -X POST http://localhost:8080/api/v1/runs/{id}/start",
   "curl http://localhost:8080/api/v1/runs/{id}/status",
+  "curl -N http://localhost:8080/api/v1/runs/{id}/events",
   "curl -X POST http://localhost:8080/api/v1/runs/{id}/replay",
   'curl -X POST http://localhost:8080/api/v1/tools/openapi-inspector/execute -H "content-type: application/json" -d \'{"input":{"endpoints":[{"method":"GET","path":"/health","summary":"Health check"}]}}\'',
   "curl http://localhost:8080/api/v1/runs/exec_pr_104/trace",
@@ -48,6 +51,7 @@ const sampleRequests = [
   "curl http://localhost:8080/api/v1/approvals",
   "curl http://localhost:8080/api/v1/runs/{id}/approvals",
   'curl -X POST http://localhost:8080/api/v1/approvals/{id}/approve -H "content-type: application/json" -d \'{"reviewerNote":"Approved for demo release."}\'',
+  "curl http://localhost:8080/api/v1/developer/events",
 ];
 
 function DeveloperApiPage() {
@@ -62,6 +66,8 @@ function DeveloperApiPage() {
   const [mcpOverview, setMcpOverview] = useState<ApiMCPOverview | null>(null);
   const [memories, setMemories] = useState<ApiMemory[]>([]);
   const [approvals, setApprovals] = useState<ApiApprovalRequest[]>([]);
+  const [runEvents, setRunEvents] = useState<ApiRunEvent[]>([]);
+  const [runEventTypes, setRunEventTypes] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -90,6 +96,7 @@ function DeveloperApiPage() {
           nextMcpOverview,
           nextMemories,
           nextApprovals,
+          nextEvents,
         ] = await Promise.all([
           getHealth(),
           getApiRoutes(),
@@ -101,6 +108,7 @@ function DeveloperApiPage() {
           getMcpOverview(),
           getMemories(),
           getApprovals(),
+          getDeveloperEvents(),
         ]);
         if (!active) return;
         setHealth(nextHealth);
@@ -113,6 +121,8 @@ function DeveloperApiPage() {
         setMcpOverview(nextMcpOverview);
         setMemories(nextMemories);
         setApprovals(nextApprovals);
+        setRunEvents(nextEvents.events);
+        setRunEventTypes(nextEvents.types);
         setError(null);
       } catch (apiError) {
         if (!active) return;
@@ -290,6 +300,39 @@ function DeveloperApiPage() {
           </div>
           <pre className="mt-4 max-h-[260px] overflow-auto rounded-lg border border-border/60 bg-black/20 p-3 text-[11px] text-muted-foreground">
             {JSON.stringify(executionLogs.slice(0, 8), null, 2)}
+          </pre>
+        </Panel>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <Panel>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Activity className="h-4 w-4 text-[var(--cyan)]" />
+            SSE event stream
+          </div>
+          <div className="mt-4 rounded-lg border border-border/60 bg-white/[0.03] p-3 text-xs">
+            <div className="font-mono text-foreground">GET /api/v1/runs/:id/events</div>
+            <div className="mt-1 text-muted-foreground">
+              Server-Sent Events stream for run status, trace evidence, approvals, memory writes,
+              tools, and artifact updates.
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {runEventTypes.map((eventType) => (
+              <StatBadge key={eventType} tone="info">
+                {eventType}
+              </StatBadge>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Activity className="h-4 w-4 text-[var(--amber)]" />
+            Recent emitted events
+          </div>
+          <pre className="mt-4 max-h-[260px] overflow-auto rounded-lg border border-border/60 bg-black/20 p-3 text-[11px] text-muted-foreground">
+            {JSON.stringify(runEvents.slice(0, 12), null, 2)}
           </pre>
         </Panel>
       </div>

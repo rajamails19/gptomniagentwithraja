@@ -14,6 +14,7 @@ import { llmService } from "../llm/LLMService";
 import { mcpService } from "../services/mcp-service";
 import { memoryService } from "../memory/MemoryService";
 import { approvalService } from "../approvals/ApprovalService";
+import { runEventService } from "../events/RunEventService";
 import { json, parseJsonBody, validateParams } from "../utils/http";
 import {
   approvalDecisionRequestSchema,
@@ -91,6 +92,11 @@ const logsResponseSchema = z.object({
 
 const executionLogsResponseSchema = z.object({
   logs: z.array(z.unknown()),
+});
+
+const eventsResponseSchema = z.object({
+  events: z.array(z.unknown()),
+  types: z.array(z.string()),
 });
 
 const runContextResponseSchema = z.object({
@@ -221,6 +227,16 @@ export const apiRoutes: ApiRoute[] = [
       const { id } = validateParams(params, idParamSchema);
       const data = runStatusResponseSchema.parse(await workflowExecutionService.getRunStatus(id));
       return json(data, requestId);
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/v1/runs/:id/events",
+    summary: "Stream real-time run events with Server-Sent Events.",
+    handler: ({ params, request }) => {
+      const { id } = validateParams(params, idParamSchema);
+      runService.getRun(id);
+      return runEventService.streamRunEvents(id, request);
     },
   },
   {
@@ -561,6 +577,18 @@ export const apiRoutes: ApiRoute[] = [
     handler: ({ requestId }) => {
       const data = executionLogsResponseSchema.parse({
         logs: developerService.listExecutionLogs(),
+      });
+      return json(data, requestId);
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/v1/developer/events",
+    summary: "List recent emitted SSE events and supported event types.",
+    handler: ({ requestId }) => {
+      const data = eventsResponseSchema.parse({
+        events: runEventService.listRecent(),
+        types: runEventService.listTypes(),
       });
       return json(data, requestId);
     },

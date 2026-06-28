@@ -10,7 +10,14 @@ import {
 } from "react";
 import { DEFAULT_SCENARIO_ID, DEMO_SCENARIOS, getDemoScenario } from "@/lib/demo/seed-data";
 import { getCurrentRun } from "@/lib/demo/selectors";
-import { cancelRun, createRun, getRunStatus, getRunTrace, startRun } from "@/lib/api/client";
+import {
+  cancelRun,
+  createRun,
+  getRunStatus,
+  getRunTrace,
+  startRun,
+  type ApiRunEvent,
+} from "@/lib/api/client";
 import type { ApiRunStatus, ApiTraceEvent } from "@/lib/api/schemas";
 import {
   applyTimelineAction,
@@ -61,6 +68,9 @@ interface DemoState {
   scenarios: DemoScenario[];
   selectedScenarioId: string;
   selectedScenario: DemoScenario;
+  activeBackendRunId: string | null;
+  liveEvents: ApiRunEvent[];
+  liveConnectionStatus: "idle" | "connecting" | "connected" | "fallback";
   selectScenario: (scenarioId: string) => void;
   start: () => void;
   reset: () => void;
@@ -86,7 +96,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [completedExecutions, setCompletedExecutions] = useState<ExecutionRecord[]>([]);
   const [hasStartedRunInSession, setHasStartedRunInSession] = useState(false);
   const [lastCompletedId, setLastCompletedId] = useState<string | null>(null);
+  const [activeBackendRunIdState, setActiveBackendRunIdState] = useState<string | null>(null);
+  const [liveEvents, setLiveEvents] = useState<ApiRunEvent[]>([]);
+  const [liveConnectionStatus, setLiveConnectionStatus] = useState<
+    "idle" | "connecting" | "connected" | "fallback"
+  >("idle");
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeBackendRunId = useRef<string | null>(null);
 
   const clearTimers = () => {
@@ -99,6 +115,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     if (runId) void cancelRun(runId).catch(() => undefined);
     clearTimers();
     activeBackendRunId.current = null;
+    setActiveBackendRunIdState(null);
+    setLiveEvents([]);
+    setLiveConnectionStatus("idle");
     setIsRunning(false);
     setIsComplete(false);
     setEngineRuntime(createInitialEngineRuntime(selectedScenario));
@@ -111,6 +130,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     setIsRunning(false);
     setIsComplete(false);
     setLastCompletedId(null);
+    setActiveBackendRunIdState(null);
+    setLiveEvents([]);
+    setLiveConnectionStatus("idle");
     setEngineRuntime(createInitialEngineRuntime(scenario));
   }, []);
 
@@ -264,6 +286,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const start = useCallback(() => {
     clearTimers();
     activeBackendRunId.current = null;
+    setActiveBackendRunIdState(null);
+    setLiveEvents([]);
     setHasStartedRunInSession(true);
     setIsRunning(true);
     setIsComplete(false);
@@ -274,16 +298,90 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       try {
         const queuedRun = await createRun(selectedScenario.id);
         activeBackendRunId.current = queuedRun.id;
+        setActiveBackendRunIdState(queuedRun.id);
         const status = await startRun(queuedRun.id);
         const trace = await getRunTrace(queuedRun.id).catch(() => []);
         applyBackendStatus(status, trace);
         pollBackendRun(queuedRun.id);
       } catch {
         activeBackendRunId.current = null;
+        setActiveBackendRunIdState(null);
+        setLiveConnectionStatus("fallback");
         startLocalDemo();
       }
     })();
   }, [applyBackendStatus, pollBackendRun, selectedScenario, startLocalDemo]);
+
+  useEffect(() => {
+    if (!activeBackendRunIdState || typeof window === "undefined" || !("EventSource" in window)) {
+      return;
+    }
+
+    setLiveConnectionStatus("connecting");
+    const source = new EventSource(`/api/v1/runs/${activeBackendRunIdState}/events`);
+    const refreshFromRest = () => {
+      if (refreshTimer.current) return;
+      refreshTimer.current = window.setTimeout(async () => {
+        refreshTimer.current = null;
+        try {
+          const [status, trace] = await Promise.all([
+            getRunStatus(activeBackendRunIdState),
+            getRunTrace(activeBackendRunIdState).catch(() => []),
+          ]);
+          applyBackendStatus(status, trace);
+        } catch {
+          setLiveConnectionStatus("fallback");
+        }
+      }, 150);
+    };
+
+    source.onopen = () => setLiveConnectionStatus("connected");
+    const handleEvent = (event: MessageEvent) => {
+      try {
+        const parsed = JSON.parse(event.data) as ApiRunEvent;
+        setLiveEvents((previous) =>
+          previous.some((item) => item.id === parsed.id)
+            ? previous
+            : [parsed, ...previous].slice(0, 80),
+        );
+      } catch {
+        return;
+      }
+      refreshFromRest();
+    };
+
+    [
+      "run.created",
+      "run.started",
+      "run.status_changed",
+      "step.started",
+      "step.completed",
+      "agent.started",
+      "agent.completed",
+      "tool.started",
+      "tool.completed",
+      "memory.written",
+      "approval.requested",
+      "approval.approved",
+      "approval.rejected",
+      "artifact.updated",
+      "run.completed",
+      "run.failed",
+    ].forEach((eventType) => source.addEventListener(eventType, handleEvent));
+    source.onmessage = handleEvent;
+    source.onerror = () => {
+      setLiveConnectionStatus("fallback");
+      source.close();
+    };
+
+    return () => {
+      source.close();
+      if (refreshTimer.current) {
+        clearTimeout(refreshTimer.current);
+        refreshTimer.current = null;
+      }
+    };
+  }, [activeBackendRunIdState, applyBackendStatus]);
 
   useEffect(() => () => clearTimers(), []);
 
@@ -304,6 +402,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       completedExecutions,
       hasStartedRunInSession,
       lastCompletedId,
+      activeBackendRunId: activeBackendRunIdState,
+      liveEvents,
+      liveConnectionStatus,
       engineRuntime,
     }),
     [
@@ -315,6 +416,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       completedExecutions,
       hasStartedRunInSession,
       lastCompletedId,
+      activeBackendRunIdState,
+      liveEvents,
+      liveConnectionStatus,
     ],
   );
 
@@ -327,11 +431,25 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       scenarios: DEMO_SCENARIOS,
       selectedScenarioId,
       selectedScenario,
+      activeBackendRunId: activeBackendRunIdState,
+      liveEvents,
+      liveConnectionStatus,
       selectScenario,
       start,
       reset,
     }),
-    [snapshot, currentRun, selectedScenarioId, selectedScenario, selectScenario, start, reset],
+    [
+      snapshot,
+      currentRun,
+      selectedScenarioId,
+      selectedScenario,
+      activeBackendRunIdState,
+      liveEvents,
+      liveConnectionStatus,
+      selectScenario,
+      start,
+      reset,
+    ],
   );
 
   return <DemoCtx.Provider value={value}>{children}</DemoCtx.Provider>;

@@ -5,6 +5,6 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "sqlite",
   dbCredentials: {
-    url: process.env.GPT_OMNI_SQLITE_PATH ?? ".data/gptomniagents.sqlite",
+    url: process.env.OMNIAGENTS_SQLITE_PATH ?? ".data/omniagents.sqlite",
   },
 });

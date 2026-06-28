@@ -306,9 +306,14 @@ function Dashboard() {
                     : "Agents are executing the documentation workflow"}
                 </div>
               </div>
-              <StatBadge tone={demo.isComplete ? "success" : "info"}>
-                {demo.isComplete ? "Success" : "Running live"}
-              </StatBadge>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatBadge tone={demo.isComplete ? "success" : "info"}>
+                  {demo.isComplete ? "Success" : "Running live"}
+                </StatBadge>
+                <StatBadge tone={demo.liveConnectionStatus === "connected" ? "success" : "warn"}>
+                  SSE {demo.liveConnectionStatus}
+                </StatBadge>
+              </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
               {currentRun.stepRuns.map((n, i) => {
@@ -338,6 +343,15 @@ function Dashboard() {
                 );
               })}
             </div>
+            {demo.liveEvents.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {demo.liveEvents.slice(0, 4).map((event) => (
+                  <StatBadge key={event.id} tone="info">
+                    {event.type}
+                  </StatBadge>
+                ))}
+              </div>
+            )}
             <div className="mt-3 max-h-32 overflow-auto font-mono text-[11px] space-y-0.5">
               {demo.logs.length === 0 ? (
                 <LoadingState label="Waiting for the first agent event" />

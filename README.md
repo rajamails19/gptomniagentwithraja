@@ -52,9 +52,9 @@ Runs, workflow steps, trace events, and artifacts are persisted in a local SQLit
 
 Local database:
 
-- Default path: `.data/gptomniagents.sqlite`
-- Vercel temporary path: `/tmp/gptomniagents.sqlite`
-- Override path: `GPT_OMNI_SQLITE_PATH=/absolute/path/to/file.sqlite`
+- Default path: `.data/omniagents.sqlite`
+- Vercel temporary path: `/tmp/omniagents.sqlite`
+- Override path: `OMNIAGENTS_SQLITE_PATH=/absolute/path/to/file.sqlite`
 - Generated SQLite files are ignored by git.
 
 Database commands:
@@ -96,6 +96,18 @@ Approval APIs:
 - `GET /api/v1/runs/:id/approvals`
 - `POST /api/v1/approvals/:id/approve`
 - `POST /api/v1/approvals/:id/reject`
+
+Real-time workflow events:
+
+- Server-Sent Events live under `src/server/events/`.
+- `EventBus` is an in-process pub/sub layer with a recent event replay buffer.
+- `RunEventService` publishes lifecycle events and exposes the run stream.
+- SSE endpoint: `GET /api/v1/runs/:id/events`.
+- Developer event metadata: `GET /api/v1/developer/events`.
+- Supported event types include run lifecycle, step lifecycle, agent activity, tool usage, memory writes, approval decisions, artifact updates, and run completion/failure.
+- The frontend subscribes with `EventSource` for the active backend run. When an event arrives, it refreshes existing REST status and trace endpoints so the REST contract remains the source of truth.
+- Existing polling remains as the fallback if SSE is unsupported, disconnected, or the backend restarts.
+- SSE is used before WebSockets because the current need is reliable one-way server-to-browser updates with simpler deployment behavior on serverless platforms.
 
 LLM provider configuration:
 

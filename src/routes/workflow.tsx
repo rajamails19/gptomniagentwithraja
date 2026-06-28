@@ -205,9 +205,14 @@ function WorkflowPage() {
                 Planner routes work across research, code, docs, QA, and reviewer agents.
               </div>
             </div>
-            <StatBadge tone={demo.isComplete ? "success" : demo.isRunning ? "info" : "default"}>
-              {demo.isComplete ? "Approved" : demo.isRunning ? "Running live" : "Ready"}
-            </StatBadge>
+            <div className="flex flex-wrap gap-2">
+              <StatBadge tone={demo.isComplete ? "success" : demo.isRunning ? "info" : "default"}>
+                {demo.isComplete ? "Approved" : demo.isRunning ? "Running live" : "Ready"}
+              </StatBadge>
+              <StatBadge tone={demo.liveConnectionStatus === "connected" ? "success" : "warn"}>
+                SSE {demo.liveConnectionStatus}
+              </StatBadge>
+            </div>
           </div>
           <div
             data-guide="workflow-canvas"

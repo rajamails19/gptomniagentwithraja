@@ -7,9 +7,9 @@ import { dirname, join } from "node:path";
 import * as schema from "./schema";
 
 const defaultDatabasePath = process.env.VERCEL
-  ? join(tmpdir(), "gptomniagents.sqlite")
-  : join(process.cwd(), ".data", "gptomniagents.sqlite");
-const databasePath = process.env.GPT_OMNI_SQLITE_PATH ?? defaultDatabasePath;
+  ? join(tmpdir(), "omniagents.sqlite")
+  : join(process.cwd(), ".data", "omniagents.sqlite");
+const databasePath = process.env.OMNIAGENTS_SQLITE_PATH ?? defaultDatabasePath;
 
 mkdirSync(dirname(databasePath), { recursive: true });
 

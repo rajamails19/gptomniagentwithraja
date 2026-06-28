@@ -7,6 +7,7 @@ import { scenarioRepository } from "../repositories/scenario-repository";
 import { traceRepository } from "../repositories/trace-repository";
 import { orchestrator } from "../orchestrator/Orchestrator";
 import { approvalService } from "../approvals/ApprovalService";
+import { runEventService } from "../events/RunEventService";
 import { badRequest, notFound } from "../utils/errors";
 import { getExecutionLogs, recordExecutionLog } from "../utils/execution-logger";
 
@@ -26,6 +27,12 @@ export class WorkflowExecutionService {
       status: run.status,
       details: { scenarioId: scenario.id },
     });
+    runEventService.publish(
+      run.id,
+      "run.created",
+      { scenarioId: scenario.id, workflow: scenario.title },
+      `evt_${run.id}_created`,
+    );
     return run;
   }
 
@@ -56,6 +63,12 @@ export class WorkflowExecutionService {
       status: "running",
       details: { scenarioId: scenario.id, engine: "orchestrator" },
     });
+    runEventService.publish(
+      runId,
+      "run.started",
+      { scenarioId: scenario.id, currentStepId: "user" },
+      `evt_${runId}_started`,
+    );
 
     return this.getRunStatus(runId);
   }
@@ -115,6 +128,16 @@ export class WorkflowExecutionService {
       cost: 0,
       latencyMs: 120,
     });
+    runEventService.publish(
+      run.id,
+      "approval.approved",
+      {
+        approvalId,
+        requestedAction: approval.requestedAction,
+        reviewerNote: reviewerNote ?? null,
+      },
+      `evt_${approvalId}_approved`,
+    );
 
     await this.completeRun(run, scenario);
     recordExecutionLog({
@@ -148,6 +171,23 @@ export class WorkflowExecutionService {
       cost: 0,
       latencyMs: 90,
     });
+    runEventService.publish(
+      run.id,
+      "approval.rejected",
+      {
+        approvalId,
+        requestedAction: approval.requestedAction,
+        reviewerNote: reviewerNote ?? null,
+      },
+      `evt_${approvalId}_rejected`,
+    );
+    runEventService.publishStatus({ ...run, status: "rejected", currentStepId: approval.stepId });
+    runEventService.publish(
+      run.id,
+      "run.failed",
+      { status: "rejected", currentStepId: approval.stepId },
+      `evt_${run.id}_rejected`,
+    );
 
     recordExecutionLog({
       runId: run.id,
@@ -214,6 +254,18 @@ export class WorkflowExecutionService {
     const activeStep = scenario.steps[activeIndex];
     const now = new Date().toISOString();
     const snapshot = await orchestrator.advance(run, scenario, activeIndex);
+    runEventService.publish(
+      runId,
+      "step.started",
+      { stepId: activeStep.id, label: activeStep.label, agent: activeStep.agent },
+      `evt_${runId}_step_started_${activeStep.id}`,
+    );
+    runEventService.publish(
+      runId,
+      "agent.started",
+      { stepId: activeStep.id, agent: activeStep.agent || "User" },
+      `evt_${runId}_agent_started_${activeStep.id}`,
+    );
 
     scenario.steps.forEach((step, index) => {
       runRepository.updateStep(runId, step.id, {
@@ -221,11 +273,26 @@ export class WorkflowExecutionService {
         startedAt: index <= activeIndex ? lifecycle.startedAt : null,
         completedAt: index < activeIndex ? now : null,
       });
+      if (index < activeIndex) {
+        runEventService.publish(
+          runId,
+          "step.completed",
+          { stepId: step.id, label: step.label, agent: step.agent },
+          `evt_${runId}_step_completed_${step.id}`,
+        );
+        runEventService.publish(
+          runId,
+          "agent.completed",
+          { stepId: step.id, agent: step.agent || "User" },
+          `evt_${runId}_agent_completed_${step.id}`,
+        );
+      }
     });
 
     traceRepository.replaceForRun(runId, snapshot.traces);
+    runEventService.publishTraceEvidence(runId, snapshot.traces);
 
-    runRepository.updateLifecycle(runId, {
+    const updatedRun = runRepository.updateLifecycle(runId, {
       status: "running",
       currentStepId: activeStep.id,
       tokens: Math.round(
@@ -245,6 +312,7 @@ export class WorkflowExecutionService {
         ),
       },
     });
+    if (updatedRun) runEventService.publishStatus(updatedRun);
 
     recordExecutionLog({
       runId,
@@ -282,7 +350,7 @@ export class WorkflowExecutionService {
       markdown: artifactMarkdown,
     });
 
-    runRepository.updateLifecycle(run.id, {
+    const completedRun = runRepository.updateLifecycle(run.id, {
       status: "completed",
       currentStepId: null,
       duration: scenario.executionRecord.duration,
@@ -299,6 +367,24 @@ export class WorkflowExecutionService {
       },
       completedAt: now,
     });
+    runEventService.publishTraceEvidence(run.id, snapshot.traces);
+    runEventService.publish(
+      run.id,
+      "artifact.updated",
+      {
+        title: scenario.finalArtifact.title,
+        filename: scenario.finalArtifact.filename,
+        status: scenario.finalArtifact.status,
+      },
+      `evt_${run.id}_artifact_updated`,
+    );
+    runEventService.publish(
+      run.id,
+      "run.completed",
+      { status: "completed", artifact: scenario.finalArtifact.filename },
+      `evt_${run.id}_completed`,
+    );
+    if (completedRun) runEventService.publishStatus(completedRun);
 
     recordExecutionLog({
       runId: run.id,
@@ -339,7 +425,7 @@ export class WorkflowExecutionService {
     });
 
     traceRepository.replaceForRun(run.id, trace);
-    runRepository.updateLifecycle(run.id, {
+    const updatedRun = runRepository.updateLifecycle(run.id, {
       status: "waiting_for_approval",
       currentStepId: "reviewer",
       started: "waiting for approval",
@@ -352,6 +438,14 @@ export class WorkflowExecutionService {
         totalCost: Number((scenario.costSummary.totalCost * 0.9).toFixed(2)),
       },
     });
+    runEventService.publishTraceEvidence(run.id, trace);
+    runEventService.publish(
+      run.id,
+      "approval.requested",
+      { approvalId, currentStepId: "reviewer" },
+      `evt_${approvalId}_requested`,
+    );
+    if (updatedRun) runEventService.publishStatus(updatedRun, run.status);
 
     recordExecutionLog({
       runId: run.id,
