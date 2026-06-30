@@ -238,6 +238,50 @@ export function runMigrations() {
 
     create index if not exists idx_page_visits_visitor_created
       on page_visits (visitor_hash, created_at);
+
+    create table if not exists eval_reports (
+      id text primary key,
+      run_id text not null unique,
+      scenario_id text not null,
+      workflow text not null,
+      status text not null check (status in ('passed', 'review', 'failed')),
+      release_decision text not null check (release_decision in ('approved', 'needs_review', 'blocked')),
+      overall_score integer not null,
+      quality_score integer not null,
+      safety_score integer not null,
+      cost_score integer not null,
+      traceability_score integer not null,
+      summary text not null,
+      generated_at text not null,
+      created_at text not null,
+      updated_at text not null,
+      foreign key (run_id) references runs(id) on delete cascade
+    );
+
+    create index if not exists idx_eval_reports_generated
+      on eval_reports (generated_at);
+
+    create table if not exists eval_checks (
+      id text primary key,
+      report_id text not null,
+      run_id text not null,
+      category text not null check (category in ('accuracy', 'completeness', 'safety', 'tooling', 'cost', 'traceability', 'approval')),
+      name text not null,
+      status text not null check (status in ('passed', 'warning', 'failed')),
+      score integer not null,
+      severity text not null check (severity in ('low', 'medium', 'high', 'critical')),
+      evidence text not null,
+      source text not null,
+      created_at text not null,
+      foreign key (report_id) references eval_reports(id) on delete cascade,
+      foreign key (run_id) references runs(id) on delete cascade
+    );
+
+    create index if not exists idx_eval_checks_report
+      on eval_checks (report_id);
+
+    create index if not exists idx_eval_checks_run
+      on eval_checks (run_id);
   `);
 
   addColumnIfMissing("trace_events", "memory_ids_json", "text");

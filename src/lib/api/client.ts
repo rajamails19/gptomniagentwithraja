@@ -1,5 +1,6 @@
 import type {
   ApiApprovalRequest,
+  ApiEvalReport,
   ApiFinalArtifact,
   ApiMemory,
   ApiRun,
@@ -10,7 +11,7 @@ import type {
   UpdateMemoryRequest,
 } from "./schemas";
 
-export type { ApiApprovalRequest, ApiRun } from "./schemas";
+export type { ApiApprovalRequest, ApiEvalReport, ApiRun } from "./schemas";
 
 export type ApiHealth = {
   ok: boolean;
@@ -350,6 +351,16 @@ export async function getRunTrace(id: string) {
 export async function getRunArtifact(id: string) {
   const data = await requestJson<{ artifact: ApiFinalArtifact }>(`/api/v1/runs/${id}/artifact`);
   return data.artifact;
+}
+
+export async function getEvals() {
+  const data = await requestJson<{ reports: ApiEvalReport[] }>("/api/v1/evals");
+  return data.reports;
+}
+
+export async function getRunEval(id: string) {
+  const data = await requestJson<{ report: ApiEvalReport }>(`/api/v1/runs/${id}/eval`);
+  return data.report;
 }
 
 export async function getMemories() {

@@ -16,6 +16,7 @@ import { Route as PromptsRouteImport } from './routes/prompts'
 import { Route as PlannerRouteImport } from './routes/planner'
 import { Route as MonitoringRouteImport } from './routes/monitoring'
 import { Route as MemoryRouteImport } from './routes/memory'
+import { Route as EvalsRouteImport } from './routes/evals'
 import { Route as DebuggerRouteImport } from './routes/debugger'
 import { Route as CostRouteImport } from './routes/cost'
 import { Route as AgentsRouteImport } from './routes/agents'
@@ -57,6 +58,11 @@ const MonitoringRoute = MonitoringRouteImport.update({
 const MemoryRoute = MemoryRouteImport.update({
   id: '/memory',
   path: '/memory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EvalsRoute = EvalsRouteImport.update({
+  id: '/evals',
+  path: '/evals',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DebuggerRoute = DebuggerRouteImport.update({
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/agents': typeof AgentsRoute
   '/cost': typeof CostRoute
   '/debugger': typeof DebuggerRoute
+  '/evals': typeof EvalsRoute
   '/memory': typeof MemoryRoute
   '/monitoring': typeof MonitoringRoute
   '/planner': typeof PlannerRoute
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/agents': typeof AgentsRoute
   '/cost': typeof CostRoute
   '/debugger': typeof DebuggerRoute
+  '/evals': typeof EvalsRoute
   '/memory': typeof MemoryRoute
   '/monitoring': typeof MonitoringRoute
   '/planner': typeof PlannerRoute
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/agents': typeof AgentsRoute
   '/cost': typeof CostRoute
   '/debugger': typeof DebuggerRoute
+  '/evals': typeof EvalsRoute
   '/memory': typeof MemoryRoute
   '/monitoring': typeof MonitoringRoute
   '/planner': typeof PlannerRoute
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
     | '/agents'
     | '/cost'
     | '/debugger'
+    | '/evals'
     | '/memory'
     | '/monitoring'
     | '/planner'
@@ -168,6 +178,7 @@ export interface FileRouteTypes {
     | '/agents'
     | '/cost'
     | '/debugger'
+    | '/evals'
     | '/memory'
     | '/monitoring'
     | '/planner'
@@ -184,6 +195,7 @@ export interface FileRouteTypes {
     | '/agents'
     | '/cost'
     | '/debugger'
+    | '/evals'
     | '/memory'
     | '/monitoring'
     | '/planner'
@@ -201,6 +213,7 @@ export interface RootRouteChildren {
   AgentsRoute: typeof AgentsRoute
   CostRoute: typeof CostRoute
   DebuggerRoute: typeof DebuggerRoute
+  EvalsRoute: typeof EvalsRoute
   MemoryRoute: typeof MemoryRoute
   MonitoringRoute: typeof MonitoringRoute
   PlannerRoute: typeof PlannerRoute
@@ -263,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MemoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/evals': {
+      id: '/evals'
+      path: '/evals'
+      fullPath: '/evals'
+      preLoaderRoute: typeof EvalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/debugger': {
       id: '/debugger'
       path: '/debugger'
@@ -321,6 +341,7 @@ const rootRouteChildren: RootRouteChildren = {
   AgentsRoute: AgentsRoute,
   CostRoute: CostRoute,
   DebuggerRoute: DebuggerRoute,
+  EvalsRoute: EvalsRoute,
   MemoryRoute: MemoryRoute,
   MonitoringRoute: MonitoringRoute,
   PlannerRoute: PlannerRoute,

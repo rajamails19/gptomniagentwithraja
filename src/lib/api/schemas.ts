@@ -105,6 +105,51 @@ export const approvalDecisionRequestSchema = z.object({
   reviewerNote: z.string().max(1_000).optional(),
 });
 
+export const evalCheckStatusSchema = z.enum(["passed", "warning", "failed"]);
+export const evalCheckSeveritySchema = z.enum(["low", "medium", "high", "critical"]);
+export const evalCheckCategorySchema = z.enum([
+  "accuracy",
+  "completeness",
+  "safety",
+  "tooling",
+  "cost",
+  "traceability",
+  "approval",
+]);
+
+export const evalCheckSchema = z.object({
+  id: z.string(),
+  reportId: z.string(),
+  runId: z.string(),
+  category: evalCheckCategorySchema,
+  name: z.string(),
+  status: evalCheckStatusSchema,
+  score: z.number(),
+  severity: evalCheckSeveritySchema,
+  evidence: z.string(),
+  source: z.string(),
+  createdAt: z.string(),
+});
+
+export const evalReportSchema = z.object({
+  id: z.string(),
+  runId: z.string(),
+  scenarioId: z.string(),
+  workflow: z.string(),
+  status: z.enum(["passed", "review", "failed"]),
+  releaseDecision: z.enum(["approved", "needs_review", "blocked"]),
+  overallScore: z.number(),
+  qualityScore: z.number(),
+  safetyScore: z.number(),
+  costScore: z.number(),
+  traceabilityScore: z.number(),
+  summary: z.string(),
+  generatedAt: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  checks: z.array(evalCheckSchema),
+});
+
 export const scenarioSummarySchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -184,6 +229,11 @@ export type ApiApprovalRequest = z.infer<typeof approvalRequestSchema>;
 export type ApiApprovalStatus = z.infer<typeof approvalStatusSchema>;
 export type ApiApprovalRiskLevel = z.infer<typeof approvalRiskLevelSchema>;
 export type ApprovalDecisionRequest = z.infer<typeof approvalDecisionRequestSchema>;
+export type ApiEvalCheck = z.infer<typeof evalCheckSchema>;
+export type ApiEvalReport = z.infer<typeof evalReportSchema>;
+export type ApiEvalCheckStatus = z.infer<typeof evalCheckStatusSchema>;
+export type ApiEvalCheckSeverity = z.infer<typeof evalCheckSeveritySchema>;
+export type ApiEvalCheckCategory = z.infer<typeof evalCheckCategorySchema>;
 export type ApiScenario = z.infer<typeof scenarioSummarySchema>;
 export type ApiRun = z.infer<typeof runSchema>;
 export type ApiRunStatus = z.infer<typeof runStatusResponseSchema>;

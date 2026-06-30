@@ -204,6 +204,42 @@ export const pageVisitsTable = sqliteTable("page_visits", {
   createdAt: text("created_at").notNull(),
 });
 
+export const evalReportsTable = sqliteTable("eval_reports", {
+  id: text("id").primaryKey(),
+  runId: text("run_id").notNull().unique(),
+  scenarioId: text("scenario_id").notNull(),
+  workflow: text("workflow").notNull(),
+  status: text("status", { enum: ["passed", "review", "failed"] }).notNull(),
+  releaseDecision: text("release_decision", {
+    enum: ["approved", "needs_review", "blocked"],
+  }).notNull(),
+  overallScore: integer("overall_score").notNull(),
+  qualityScore: integer("quality_score").notNull(),
+  safetyScore: integer("safety_score").notNull(),
+  costScore: integer("cost_score").notNull(),
+  traceabilityScore: integer("traceability_score").notNull(),
+  summary: text("summary").notNull(),
+  generatedAt: text("generated_at").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const evalChecksTable = sqliteTable("eval_checks", {
+  id: text("id").primaryKey(),
+  reportId: text("report_id").notNull(),
+  runId: text("run_id").notNull(),
+  category: text("category", {
+    enum: ["accuracy", "completeness", "safety", "tooling", "cost", "traceability", "approval"],
+  }).notNull(),
+  name: text("name").notNull(),
+  status: text("status", { enum: ["passed", "warning", "failed"] }).notNull(),
+  score: integer("score").notNull(),
+  severity: text("severity", { enum: ["low", "medium", "high", "critical"] }).notNull(),
+  evidence: text("evidence").notNull(),
+  source: text("source").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
 export type RunRow = typeof runsTable.$inferSelect;
 export type WorkflowStepRow = typeof workflowStepsTable.$inferSelect;
 export type TraceEventRow = typeof traceEventsTable.$inferSelect;
@@ -211,3 +247,5 @@ export type ArtifactRow = typeof artifactsTable.$inferSelect;
 export type MemoryRow = typeof memoriesTable.$inferSelect;
 export type ApprovalRequestRow = typeof approvalRequestsTable.$inferSelect;
 export type PageVisitRow = typeof pageVisitsTable.$inferSelect;
+export type EvalReportRow = typeof evalReportsTable.$inferSelect;
+export type EvalCheckRow = typeof evalChecksTable.$inferSelect;

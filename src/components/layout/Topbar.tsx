@@ -22,6 +22,7 @@ import {
   Brain,
   Wrench,
   DollarSign,
+  ClipboardCheck,
   Settings,
   Sun,
   Moon,
@@ -48,6 +49,7 @@ const mobileNav = [
   { to: "/memory", label: "Memory", icon: Brain },
   { to: "/tools", label: "Tools", icon: Wrench },
   { to: "/cost", label: "Cost Analytics", icon: DollarSign },
+  { to: "/evals", label: "Evals", icon: ClipboardCheck },
   { to: "/settings", label: "Settings", icon: Settings },
   { to: "/about", label: "About Raja", icon: Sparkles },
 ] as const;

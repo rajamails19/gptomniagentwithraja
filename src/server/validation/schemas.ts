@@ -5,6 +5,7 @@ import {
   approvalRequestSchema,
   createRunRequestSchema,
   createMemoryRequestSchema,
+  evalReportSchema,
   finalArtifactSchema,
   memorySchema,
   runSchema,
@@ -20,6 +21,7 @@ export {
   approvalRequestSchema,
   createRunRequestSchema,
   createMemoryRequestSchema,
+  evalReportSchema,
   finalArtifactSchema,
   memorySchema,
   runSchema,
@@ -120,4 +122,12 @@ export const approvalsResponseSchema = z.object({
 
 export const approvalResponseSchema = z.object({
   approval: approvalRequestSchema,
+});
+
+export const evalsResponseSchema = z.object({
+  reports: z.array(evalReportSchema),
+});
+
+export const evalResponseSchema = z.object({
+  report: evalReportSchema,
 });

@@ -3,6 +3,7 @@ export type VisualGuideRoute =
   | "/workflow"
   | "/debugger"
   | "/cost"
+  | "/evals"
   | "/agents"
   | "/tools"
   | "/planner"
@@ -86,6 +87,15 @@ export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
     body: "Cost Analytics translates AI activity into spend, tokens, latency, and budget visibility.",
     route: "/cost",
     selector: '[data-guide="nav-cost"]',
+    fallbackSelector: "main h1",
+    placement: "right",
+  },
+  {
+    id: "evals",
+    title: "Show quality gates.",
+    body: "Evals prove agent outputs can be tested, scored, compared, and gated before they reach real users.",
+    route: "/evals",
+    selector: '[data-guide="nav-evals"]',
     fallbackSelector: "main h1",
     placement: "right",
   },

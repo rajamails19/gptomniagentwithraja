@@ -8,6 +8,7 @@ import { traceRepository } from "../repositories/trace-repository";
 import { orchestrator } from "../orchestrator/Orchestrator";
 import { approvalService } from "../approvals/ApprovalService";
 import { runEventService } from "../events/RunEventService";
+import { evalService } from "./eval-service";
 import { badRequest, notFound } from "../utils/errors";
 import { getExecutionLogs, recordExecutionLog } from "../utils/execution-logger";
 
@@ -426,6 +427,7 @@ export class WorkflowExecutionService {
       `evt_${run.id}_completed`,
     );
     if (completedRun) runEventService.publishStatus(completedRun);
+    if (completedRun) evalService.generateForRun(completedRun);
 
     recordExecutionLog({
       runId: run.id,
