@@ -3,6 +3,7 @@ import { jsonError } from "../utils/http";
 import { createRequestId, recordRequestLog } from "../utils/logger";
 import { methodNotAllowed, rateLimited, routeNotFound } from "../utils/errors";
 import { isDeveloperAccessAllowed, isDeveloperApiPath } from "../utils/developer-access";
+import { isAdminAccessAllowed, isAdminApiPath } from "../utils/admin-access";
 import { applyRateLimitHeaders, checkRateLimit } from "../utils/rate-limit";
 import { apiRoutes } from "./routes";
 
@@ -30,6 +31,10 @@ export async function handleApiRequest(request: Request): Promise<Response | nul
     }
 
     if (isDeveloperApiPath(url.pathname) && !isDeveloperAccessAllowed(request, url)) {
+      throw routeNotFound();
+    }
+
+    if (isAdminApiPath(url.pathname) && !isAdminAccessAllowed(request, url)) {
       throw routeNotFound();
     }
 

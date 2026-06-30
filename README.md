@@ -123,11 +123,23 @@ Demo safety controls:
 - Basic API rate limiting is enabled in memory for all `/api/*` routes.
 - `API_RATE_LIMIT_MAX` controls requests per bucket. Default: `120`.
 - `API_RATE_LIMIT_WINDOW_MS` controls the window. Default: `60000`.
+- Admin analytics endpoints under `/api/v1/admin/*` are protected by `ADMIN_ANALYTICS_TOKEN`.
+- The hidden `/admin/analytics` page is also protected by `ADMIN_ANALYTICS_TOKEN`.
+- To open the owner analytics page, visit `/admin/analytics?token=<ADMIN_ANALYTICS_TOKEN>`. A session cookie is set after a successful token check.
+- Optional: set `ANALYTICS_SALT` so anonymous visitor hashes stay stable for your deployment but cannot be guessed from default code.
 - Developer endpoints under `/api/v1/developer/*` are protected by `DEVELOPER_API_TOKEN` in production.
 - The `/developer/api` page is also protected by `DEVELOPER_API_TOKEN` in production.
 - To open the developer page, visit `/developer/api?token=<DEVELOPER_API_TOKEN>`. A session cookie is set after a successful token check.
 - For curl access to developer endpoints, pass `x-developer-token: <DEVELOPER_API_TOKEN>`.
 - In local development, if `DEVELOPER_API_TOKEN` is not set, the developer page remains available.
+
+Owner analytics:
+
+- Visits are recorded server-side for public app pages, excluding `/api`, `/admin`, `/developer`, and static assets.
+- Captured fields include page path, timestamp, referrer, user agent, device type, bot/link-preview flag, anonymous visitor hash, and coarse Vercel geo headers when available.
+- Raw IP addresses are not stored.
+- Without login, this cannot identify exact people. It shows anonymous visitors and rough geography.
+- On Vercel, the current SQLite file uses temporary serverless storage, so analytics are a useful demo/admin foundation but not guaranteed long-term durable storage. For reliable production analytics, move `page_visits` to Postgres, Turso, Supabase, Neon, or Vercel Web Analytics.
 
 Tool execution framework:
 

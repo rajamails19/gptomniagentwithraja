@@ -187,9 +187,27 @@ export const approvalRequestsTable = sqliteTable("approval_requests", {
   decidedAt: text("decided_at"),
 });
 
+export const pageVisitsTable = sqliteTable("page_visits", {
+  id: text("id").primaryKey(),
+  path: text("path").notNull(),
+  referrer: text("referrer"),
+  userAgent: text("user_agent"),
+  visitorHash: text("visitor_hash").notNull(),
+  deviceType: text("device_type", { enum: ["desktop", "mobile", "tablet", "bot", "unknown"] })
+    .notNull()
+    .default("unknown"),
+  country: text("country"),
+  region: text("region"),
+  city: text("city"),
+  timezone: text("timezone"),
+  isBot: integer("is_bot", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at").notNull(),
+});
+
 export type RunRow = typeof runsTable.$inferSelect;
 export type WorkflowStepRow = typeof workflowStepsTable.$inferSelect;
 export type TraceEventRow = typeof traceEventsTable.$inferSelect;
 export type ArtifactRow = typeof artifactsTable.$inferSelect;
 export type MemoryRow = typeof memoriesTable.$inferSelect;
 export type ApprovalRequestRow = typeof approvalRequestsTable.$inferSelect;
+export type PageVisitRow = typeof pageVisitsTable.$inferSelect;

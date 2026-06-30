@@ -214,6 +214,30 @@ export function runMigrations() {
 
     create index if not exists idx_approval_requests_status_created
       on approval_requests (status, created_at);
+
+    create table if not exists page_visits (
+      id text primary key,
+      path text not null,
+      referrer text,
+      user_agent text,
+      visitor_hash text not null,
+      device_type text not null default 'unknown' check (device_type in ('desktop', 'mobile', 'tablet', 'bot', 'unknown')),
+      country text,
+      region text,
+      city text,
+      timezone text,
+      is_bot integer not null default 0,
+      created_at text not null
+    );
+
+    create index if not exists idx_page_visits_created
+      on page_visits (created_at);
+
+    create index if not exists idx_page_visits_path_created
+      on page_visits (path, created_at);
+
+    create index if not exists idx_page_visits_visitor_created
+      on page_visits (visitor_hash, created_at);
   `);
 
   addColumnIfMissing("trace_events", "memory_ids_json", "text");

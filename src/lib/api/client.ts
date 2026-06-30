@@ -138,6 +138,41 @@ export type ApiRunEvent = {
   payload: Record<string, unknown>;
 };
 
+export type ApiAdminVisit = {
+  id: string;
+  path: string;
+  referrer: string | null;
+  userAgent: string | null;
+  visitorHash: string;
+  deviceType: "desktop" | "mobile" | "tablet" | "bot" | "unknown";
+  country: string | null;
+  region: string | null;
+  city: string | null;
+  timezone: string | null;
+  isBot: boolean;
+  createdAt: string;
+};
+
+export type ApiAdminAnalytics = {
+  summary: {
+    totalVisits: number;
+    uniqueVisitors: number;
+    mobileVisits: number;
+    desktopVisits: number;
+    botVisits: number;
+    topPages: Array<{ path: string; visits: number }>;
+    topReferrers: Array<{ referrer: string; visits: number }>;
+    locations: Array<{ label: string; visits: number }>;
+    visitsByDay: Array<{ date: string; visits: number }>;
+  };
+  visits: ApiAdminVisit[];
+  privacy: {
+    storesRawIp: boolean;
+    locationSource: string;
+    note: string;
+  };
+};
+
 export interface ApiOrchestrationContext {
   runId: string;
   currentStep: string;
@@ -206,6 +241,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const developerTokenStorageKey = "omniagents.developerToken";
+export const adminAnalyticsTokenStorageKey = "omniagents.adminAnalyticsToken";
 
 export function saveDeveloperToken(token: string) {
   if (typeof window === "undefined") return;
@@ -224,6 +260,27 @@ function developerRequestInit(init?: RequestInit): RequestInit {
     headers: {
       ...(init?.headers ?? {}),
       ...(token ? { "x-developer-token": token } : {}),
+    },
+  };
+}
+
+export function saveAdminAnalyticsToken(token: string) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(adminAnalyticsTokenStorageKey, token);
+}
+
+export function getAdminAnalyticsToken() {
+  if (typeof window === "undefined") return "";
+  return window.sessionStorage.getItem(adminAnalyticsTokenStorageKey) ?? "";
+}
+
+function adminRequestInit(init?: RequestInit): RequestInit {
+  const token = getAdminAnalyticsToken();
+  return {
+    ...init,
+    headers: {
+      ...(init?.headers ?? {}),
+      ...(token ? { "x-admin-token": token } : {}),
     },
   };
 }
@@ -375,6 +432,10 @@ export async function getApiLogs() {
     developerRequestInit(),
   );
   return data.logs;
+}
+
+export async function getAdminAnalytics() {
+  return requestJson<ApiAdminAnalytics>("/api/v1/admin/analytics", adminRequestInit());
 }
 
 export async function getExecutionLogs() {

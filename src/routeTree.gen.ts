@@ -22,6 +22,7 @@ import { Route as AgentsRouteImport } from './routes/agents'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DeveloperApiRouteImport } from './routes/developer.api'
+import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 
 const WorkflowRoute = WorkflowRouteImport.update({
   id: '/workflow',
@@ -88,6 +89,11 @@ const DeveloperApiRoute = DeveloperApiRouteImport.update({
   path: '/developer/api',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
+  id: '/admin/analytics',
+  path: '/admin/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/tools': typeof ToolsRoute
   '/workflow': typeof WorkflowRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
   '/developer/api': typeof DeveloperApiRoute
 }
 export interface FileRoutesByTo {
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/tools': typeof ToolsRoute
   '/workflow': typeof WorkflowRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
   '/developer/api': typeof DeveloperApiRoute
 }
 export interface FileRoutesById {
@@ -133,6 +141,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/tools': typeof ToolsRoute
   '/workflow': typeof WorkflowRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
   '/developer/api': typeof DeveloperApiRoute
 }
 export interface FileRouteTypes {
@@ -150,6 +159,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tools'
     | '/workflow'
+    | '/admin/analytics'
     | '/developer/api'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tools'
     | '/workflow'
+    | '/admin/analytics'
     | '/developer/api'
   id:
     | '__root__'
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tools'
     | '/workflow'
+    | '/admin/analytics'
     | '/developer/api'
   fileRoutesById: FileRoutesById
 }
@@ -196,6 +208,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   ToolsRoute: typeof ToolsRoute
   WorkflowRoute: typeof WorkflowRoute
+  AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   DeveloperApiRoute: typeof DeveloperApiRoute
 }
 
@@ -292,6 +305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeveloperApiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/analytics': {
+      id: '/admin/analytics'
+      path: '/admin/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AdminAnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -308,6 +328,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   ToolsRoute: ToolsRoute,
   WorkflowRoute: WorkflowRoute,
+  AdminAnalyticsRoute: AdminAnalyticsRoute,
   DeveloperApiRoute: DeveloperApiRoute,
 }
 export const routeTree = rootRouteImport

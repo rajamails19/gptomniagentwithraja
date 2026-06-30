@@ -14,6 +14,7 @@ import {
   scenarioResponseSchema,
   scenariosResponseSchema,
 } from "../validation/schemas";
+import { adminRoutes } from "./routes/admin";
 import { approvalRoutes } from "./routes/approvals";
 import { createDeveloperRoutes } from "./routes/developer";
 import { memoryRoutes } from "./routes/memory";
@@ -119,6 +120,7 @@ export const apiRoutes: ApiRoute[] = [
     },
   },
   ...createDeveloperRoutes(getRegisteredRoutes),
+  ...adminRoutes,
 ];
 
 export function getRegisteredRoutes(): RegisteredRoute[] {

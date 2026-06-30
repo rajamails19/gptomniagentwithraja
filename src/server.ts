@@ -3,6 +3,14 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { handleApiRequest } from "./server/api/router";
+import { analyticsService } from "./server/analytics/AnalyticsService";
+import {
+  adminAccessNotFoundResponse,
+  isAdminAccessAllowed,
+  isAdminPagePath,
+  setAdminAccessCookie,
+  shouldSetAdminAccessCookie,
+} from "./server/utils/admin-access";
 import {
   developerAccessNotFoundResponse,
   isDeveloperAccessAllowed,
@@ -49,6 +57,10 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const url = new URL(request.url);
+      if (isAdminPagePath(url.pathname) && !isAdminAccessAllowed(request, url)) {
+        return adminAccessNotFoundResponse();
+      }
+
       if (isDeveloperPagePath(url.pathname) && !isDeveloperAccessAllowed(request, url)) {
         return developerAccessNotFoundResponse();
       }
@@ -59,6 +71,18 @@ export default {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       const normalizedResponse = await normalizeCatastrophicSsrResponse(response);
+      if (normalizedResponse.status < 400) {
+        analyticsService.recordPageVisit(request, url);
+      }
+      if (isAdminPagePath(url.pathname) && shouldSetAdminAccessCookie(url)) {
+        const responseWithCookie = new Response(normalizedResponse.body, {
+          status: normalizedResponse.status,
+          statusText: normalizedResponse.statusText,
+          headers: new Headers(normalizedResponse.headers),
+        });
+        setAdminAccessCookie(responseWithCookie, url);
+        return responseWithCookie;
+      }
       if (isDeveloperPagePath(url.pathname) && shouldSetDeveloperAccessCookie(url)) {
         const responseWithCookie = new Response(normalizedResponse.body, {
           status: normalizedResponse.status,
