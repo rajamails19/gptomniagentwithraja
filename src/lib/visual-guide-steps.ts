@@ -18,47 +18,72 @@ export interface VisualGuideStep {
   fallbackSelector?: string;
   placement: "top" | "right" | "bottom" | "left";
   autoStartDemo?: boolean;
+  closeResultsModal?: boolean;
+  durationMs?: number;
 }
 
 export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
   {
     id: "dashboard-run",
-    title: "Click here to start the product story.",
-    body: "This starts a governed AI workflow, not just a chat response.",
+    title: "Start with the live workflow.",
+    body: "This is the main demo entry point: a real backend run begins and the control room updates live.",
     route: "/",
     selector: '[data-guide="dashboard-run"]',
     placement: "bottom",
   },
   {
     id: "workflow-run",
-    title: "Now run the workflow canvas.",
-    body: "The guide triggers the demo so viewers can watch planning, handoffs, checks, and approval.",
+    title: "The guide now starts the run for you.",
+    body: "Watch the product behave like a control room: planner, agents, tools, memory, and review all move together.",
     route: "/workflow",
     selector: '[data-guide="workflow-run"]',
     placement: "bottom",
     autoStartDemo: true,
+    durationMs: 2600,
   },
   {
     id: "workflow-canvas",
-    title: "Watch the agents move step by step.",
-    body: "User request, planner, research, code, docs, QA, reviewer, and final artifact stay visible.",
+    title: "Follow the orchestration path.",
+    body: "The canvas shows the user request moving through planner, specialist agents, QA, reviewer, and final output.",
     route: "/workflow",
     selector: '[data-guide="workflow-canvas"]',
     placement: "top",
+    durationMs: 7200,
+  },
+  {
+    id: "results-checkpoint",
+    title: "A checkpoint appears at the right moment.",
+    body: "The results overlay explains what happened and why the workflow paused for human approval.",
+    route: "/workflow",
+    selector: '[data-guide="demo-results-modal"]',
+    fallbackSelector: '[data-guide="approval-gates"]',
+    placement: "bottom",
+    durationMs: 5200,
+  },
+  {
+    id: "approval-gates",
+    title: "Enterprise workflows need human gates.",
+    body: "Sensitive releases pause here so a reviewer can approve or reject the final artifact before it ships.",
+    route: "/workflow",
+    selector: '[data-guide="approval-gates"]',
+    placement: "top",
+    closeResultsModal: true,
+    durationMs: 4800,
   },
   {
     id: "debugger",
-    title: "Next, inspect the proof trail.",
-    body: "Debugger shows prompts, models, memory, tool calls, retries, latency, cost, and output evidence.",
+    title: "Debugger is the technical proof screen.",
+    body: "This is where clients see prompts, models, memory, tool calls, retries, latency, cost, and trace evidence.",
     route: "/debugger",
-    selector: '[data-guide="nav-debugger"]',
+    selector: '[data-guide="debugger-proof"]',
     fallbackSelector: "main h1",
-    placement: "right",
+    placement: "top",
+    closeResultsModal: true,
   },
   {
     id: "cost",
-    title: "Show cost control.",
-    body: "This is where investors see tokens, spend, workflow cost, and operating discipline.",
+    title: "Show operating discipline.",
+    body: "Cost Analytics translates AI activity into spend, tokens, latency, and budget visibility.",
     route: "/cost",
     selector: '[data-guide="nav-cost"]',
     fallbackSelector: "main h1",
@@ -67,7 +92,7 @@ export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
   {
     id: "agents",
     title: "Show the agent workforce.",
-    body: "Each agent has a role, tools, model access, memory, reliability, and current status.",
+    body: "Each agent has a role, tools, model access, memory behavior, reliability, and current status.",
     route: "/agents",
     selector: '[data-guide="nav-agents"]',
     fallbackSelector: "main h1",
@@ -75,8 +100,8 @@ export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
   },
   {
     id: "tools",
-    title: "Show approved tools.",
-    body: "This is the safety layer: agents can call only registered local or MCP-ready tools.",
+    title: "Show safe tool execution.",
+    body: "Agents call only registered local or MCP-ready tools through the backend registry.",
     route: "/tools",
     selector: '[data-guide="nav-tools"]',
     fallbackSelector: "main h1",
@@ -84,8 +109,8 @@ export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
   },
   {
     id: "planner",
-    title: "Show the planner.",
-    body: "The planner turns a business goal into ordered tasks and agent handoffs.",
+    title: "Show how work is planned.",
+    body: "The planner turns a business goal into ordered tasks, agent assignments, and handoffs.",
     route: "/planner",
     selector: '[data-guide="nav-planner"]',
     fallbackSelector: "main h1",
@@ -94,7 +119,7 @@ export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
   {
     id: "prompts",
     title: "Show prompt governance.",
-    body: "Prompt Library makes AI behavior reusable, reviewable, and versioned.",
+    body: "Prompt Library makes agent behavior reusable, reviewable, versioned, and easier to control.",
     route: "/prompts",
     selector: '[data-guide="nav-prompts"]',
     fallbackSelector: "main h1",
@@ -103,7 +128,7 @@ export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
   {
     id: "about",
     title: "Close with the founder story.",
-    body: "This makes Raja and NuvRajLabs visible as the builder behind the product.",
+    body: "This makes Raja and NuvRajLabs visible as the builder behind OmniAgents.",
     route: "/about",
     selector: '[data-guide="about-founder"]',
     fallbackSelector: "main h1",

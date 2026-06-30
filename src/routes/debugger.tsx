@@ -248,7 +248,10 @@ function DebuggerPage() {
             </div>
           </div>
 
-          <div className="mb-4 rounded-xl border border-border/60 bg-white/[0.03] p-3 text-xs text-muted-foreground">
+          <div
+            data-guide="debugger-proof"
+            className="mb-4 rounded-xl border border-border/60 bg-white/[0.03] p-3 text-xs text-muted-foreground"
+          >
             This proof screen demonstrates observability, auditability, and governance: every
             selected step exposes the agent, model, prompt, tool evidence, memory context, retry
             handling, cost, latency, and approved artifact trail.

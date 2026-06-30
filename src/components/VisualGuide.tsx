@@ -42,6 +42,11 @@ export function VisualGuide() {
   }, [demo, open, step.autoStartDemo]);
 
   useEffect(() => {
+    if (!open || !step.closeResultsModal) return;
+    window.dispatchEvent(new Event("omniagents:close-demo-results"));
+  }, [open, step.closeResultsModal]);
+
+  useEffect(() => {
     if (!open) return;
 
     const updateTarget = () => {
@@ -76,10 +81,10 @@ export function VisualGuide() {
       } else {
         setIndex((value) => value + 1);
       }
-    }, STEP_DURATION_MS);
+    }, step.durationMs ?? STEP_DURATION_MS);
 
     return () => window.clearTimeout(stepTimer);
-  }, [index, isLastStep, open]);
+  }, [index, isLastStep, open, step.durationMs]);
 
   useEffect(() => {
     if (!open) return;

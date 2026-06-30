@@ -87,6 +87,7 @@ function WorkflowPage() {
   const currentRun = demo.currentRun;
   const [activeId, setActiveId] = useState<DemoNodeId>("planner");
   const [showOutput, setShowOutput] = useState(false);
+  const [shouldRevealHashTarget, setShouldRevealHashTarget] = useState(false);
   const [isTriggeringGate, setIsTriggeringGate] = useState(false);
   const [approvalsPanelKey, setApprovalsPanelKey] = useState(0);
   const [animatedNodeId, setAnimatedNodeId] = useState<DemoNodeId | null>(null);
@@ -96,6 +97,8 @@ function WorkflowPage() {
   >([]);
   const animationTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const liveFeedRef = useRef<HTMLDivElement>(null);
+  const finalArtifactRef = useRef<HTMLDivElement>(null);
+  const lastPresentedResultId = useRef<string | null>(null);
   const active = currentRun.stepRuns.find((n) => n.id === activeId) ?? currentRun.stepRuns[1];
   const activeStatus = demo.statuses[activeId];
   const activePhase = getAgentPhaseIndex(active);
@@ -149,6 +152,48 @@ function WorkflowPage() {
   };
 
   useEffect(() => () => clearWorkflowAnimation(), []);
+
+  useEffect(() => {
+    if (!demo.isComplete || !demo.lastCompletedId) return;
+    if (lastPresentedResultId.current === demo.lastCompletedId) return;
+
+    lastPresentedResultId.current = demo.lastCompletedId;
+    setShowOutput(true);
+
+    const scrollTimer = setTimeout(() => {
+      finalArtifactRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+
+    return () => clearTimeout(scrollTimer);
+  }, [demo.isComplete, demo.lastCompletedId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#final-artifact") return;
+
+    setShouldRevealHashTarget(true);
+    setShowOutput(true);
+
+    let attempts = 0;
+    let scrollTimer: ReturnType<typeof setTimeout> | undefined;
+    const scrollToArtifact = () => {
+      attempts += 1;
+      const target = finalArtifactRef.current ?? document.getElementById("final-artifact");
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      if (attempts < 10) {
+        scrollTimer = setTimeout(scrollToArtifact, 100);
+      }
+    };
+
+    scrollTimer = setTimeout(scrollToArtifact, 120);
+
+    return () => {
+      if (scrollTimer) clearTimeout(scrollTimer);
+    };
+  }, []);
 
   async function triggerApprovalGate() {
     setIsTriggeringGate(true);
@@ -779,33 +824,35 @@ function WorkflowPage() {
       )}
 
       {/* Final output */}
-      {(demo.isComplete || showOutput) && (
-        <Panel>
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-[var(--electric)]/30 to-[var(--violet)]/30 grid place-items-center">
-                <FileText className="h-4 w-4 text-[var(--cyan)]" />
-              </div>
-              <div>
-                <div className="text-sm font-semibold">{currentRun.finalArtifact.title}</div>
-                <div className="text-xs text-muted-foreground font-mono">
-                  {currentRun.finalArtifact.filename} · {currentRun.finalArtifact.sizeLabel} ·
-                  approved by {currentRun.finalArtifact.approvedBy}
+      {(demo.isComplete || showOutput || shouldRevealHashTarget) && (
+        <div ref={finalArtifactRef} id="final-artifact" className="scroll-mt-24">
+          <Panel>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-[var(--electric)]/30 to-[var(--violet)]/30 grid place-items-center">
+                  <FileText className="h-4 w-4 text-[var(--cyan)]" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold">{currentRun.finalArtifact.title}</div>
+                  <div className="text-xs text-muted-foreground font-mono">
+                    {currentRun.finalArtifact.filename} · {currentRun.finalArtifact.sizeLabel} ·
+                    approved by {currentRun.finalArtifact.approvedBy}
+                  </div>
                 </div>
               </div>
+              <div className="flex items-center gap-2">
+                <StatBadge tone="success">
+                  <CheckCircle2 className="h-3 w-3" /> QA 14/14 passed
+                </StatBadge>
+                <CopyButton text={currentRun.finalArtifact.markdown} />
+                <StatBadge tone="info">Preview artifact</StatBadge>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <StatBadge tone="success">
-                <CheckCircle2 className="h-3 w-3" /> QA 14/14 passed
-              </StatBadge>
-              <CopyButton text={currentRun.finalArtifact.markdown} />
-              <StatBadge tone="info">Preview artifact</StatBadge>
-            </div>
-          </div>
-          <pre className="mt-4 rounded-xl bg-black/50 border border-border/60 p-4 text-[11.5px] font-mono leading-relaxed text-muted-foreground whitespace-pre-wrap overflow-x-auto max-h-[420px] overflow-y-auto">
-            {currentRun.finalArtifact.markdown}
-          </pre>
-        </Panel>
+            <pre className="mt-4 rounded-xl bg-black/50 border border-border/60 p-4 text-[11.5px] font-mono leading-relaxed text-muted-foreground whitespace-pre-wrap overflow-x-auto max-h-[420px] overflow-y-auto">
+              {currentRun.finalArtifact.markdown}
+            </pre>
+          </Panel>
+        </div>
       )}
     </div>
   );

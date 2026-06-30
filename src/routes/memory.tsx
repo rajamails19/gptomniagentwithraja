@@ -19,6 +19,17 @@ export const Route = createFileRoute("/memory")({
 });
 
 const scopes: Array<ApiMemoryScope | "all"> = ["all", "run", "workflow", "global"];
+const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "UTC",
+});
+
+function formatMemoryTimestamp(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "unknown";
+  return `${dateTimeFormatter.format(date)} UTC`;
+}
 
 function MemoryPage() {
   const [memories, setMemories] = useState<ApiMemory[]>([]);
@@ -198,7 +209,7 @@ function MemoryPage() {
                 <Detail label="Run" value={selected.runId ?? "not scoped"} />
                 <Detail label="Scenario" value={selected.scenarioId ?? "global"} />
                 <Detail label="Agent" value={selected.agentId ?? "shared"} />
-                <Detail label="Created" value={new Date(selected.createdAt).toLocaleString()} />
+                <Detail label="Created" value={formatMemoryTimestamp(selected.createdAt)} />
               </div>
             </>
           ) : (

@@ -303,126 +303,128 @@ export function ApprovalsPanel({ runId }: { runId?: string | null }) {
         isSubmitting={isSubmitting}
       />
 
-      <Panel className="border-[oklch(0.82_0.17_75/0.22)] bg-[oklch(0.82_0.17_75/0.06)]">
-        <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          {/* Header */}
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-[var(--amber)]" aria-hidden="true" />
-              <h2 className="text-sm font-semibold">Human approval gates</h2>
-              <StatBadge tone={pending.length ? "warn" : "success"}>
-                {pending.length ? `${pending.length} pending` : "Clear"}
-              </StatBadge>
+      <div data-guide="approval-gates">
+        <Panel className="border-[oklch(0.82_0.17_75/0.22)] bg-[oklch(0.82_0.17_75/0.06)]">
+          <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            {/* Header */}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-[var(--amber)]" aria-hidden="true" />
+                <h2 className="text-sm font-semibold">Human approval gates</h2>
+                <StatBadge tone={pending.length ? "warn" : "success"}>
+                  {pending.length ? `${pending.length} pending` : "Clear"}
+                </StatBadge>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {runId
+                  ? "Showing approval gates for the active workflow run."
+                  : "Scenario policies pause sensitive releases before final artifact publishing."}
+              </p>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {runId
-                ? "Showing approval gates for the active workflow run."
-                : "Scenario policies pause sensitive releases before final artifact publishing."}
-            </p>
-          </div>
 
-          {/* Right column */}
-          <div className="w-full min-w-0 space-y-2 lg:max-w-3xl">
-            {/* Post-decision banner */}
-            {lastDecision && (
-              <div
-                className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
-                  lastDecision.decision === "approve"
-                    ? "border-[oklch(0.78_0.17_165/0.4)] bg-[oklch(0.78_0.17_165/0.08)]"
-                    : "border-[oklch(0.65_0.22_25/0.4)] bg-[oklch(0.65_0.22_25/0.08)]"
-                }`}
-              >
-                {lastDecision.decision === "approve" ? (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-[var(--emerald)]" />
-                ) : (
-                  <ShieldX className="h-4 w-4 shrink-0 text-[var(--destructive)]" />
-                )}
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">
-                    {lastDecision.decision === "approve"
-                      ? "Run approved — resuming execution"
-                      : "Run rejected — execution halted"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {lastDecision.approval.requestedAction}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Loading skeleton */}
-            {isLoading ? (
-              <div className="h-16 animate-pulse rounded-xl bg-white/5" />
-            ) : pending.length > 0 ? (
-              pending.map((approval) => {
-                const { border, bg, badge } = riskColors(approval.riskLevel);
-                return (
-                  <div
-                    key={approval.id}
-                    className={`rounded-xl border ${border} ${bg} p-4 space-y-3`}
-                  >
-                    {/* Top row: badges + action label */}
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <StatBadge tone={badge}>{approval.riskLevel} risk</StatBadge>
-                      <span className="min-w-0 flex-1 text-sm font-semibold">
-                        {approval.requestedAction}
-                      </span>
-                      <span className="flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground sm:ml-auto">
-                        <Clock className="h-3 w-3" />
-                        {timeAgo(approval.createdAt)}
-                      </span>
-                    </div>
-
-                    {/* Reason */}
-                    <p className="text-xs text-muted-foreground">{approval.reason}</p>
-
-                    {/* Artifact preview with expand */}
-                    <div className="min-w-0 rounded-md border border-white/8 bg-black/20 px-3 py-2">
-                      <div className="mb-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                        Artifact preview
-                      </div>
-                      <ArtifactPreview text={approval.artifactPreview} />
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="grid grid-cols-1 gap-2 pt-1 sm:flex sm:justify-end">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full border-[var(--destructive)]/40 text-[var(--destructive)] hover:bg-[var(--destructive)]/10 hover:border-[var(--destructive)]/70 sm:w-auto"
-                        onClick={() => openDialog(approval, "reject")}
-                      >
-                        <XCircle className="h-3.5 w-3.5 mr-1.5" />
-                        Reject
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="w-full bg-[var(--emerald)] hover:bg-[var(--emerald)]/90 text-black border-0 shadow-[0_6px_20px_-8px_oklch(0.78_0.17_165/0.8)] sm:w-auto"
-                        onClick={() => openDialog(approval, "approve")}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                        Approve
-                      </Button>
-                    </div>
+            {/* Right column */}
+            <div className="w-full min-w-0 space-y-2 lg:max-w-3xl">
+              {/* Post-decision banner */}
+              {lastDecision && (
+                <div
+                  className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
+                    lastDecision.decision === "approve"
+                      ? "border-[oklch(0.78_0.17_165/0.4)] bg-[oklch(0.78_0.17_165/0.08)]"
+                      : "border-[oklch(0.65_0.22_25/0.4)] bg-[oklch(0.65_0.22_25/0.08)]"
+                  }`}
+                >
+                  {lastDecision.decision === "approve" ? (
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-[var(--emerald)]" />
+                  ) : (
+                    <ShieldX className="h-4 w-4 shrink-0 text-[var(--destructive)]" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      {lastDecision.decision === "approve"
+                        ? "Run approved — resuming execution"
+                        : "Run rejected — execution halted"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {lastDecision.approval.requestedAction}
+                    </p>
                   </div>
-                );
-              })
-            ) : (
-              <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-background/45 p-3">
-                <ShieldAlert className="h-4 w-4 text-[var(--emerald)]" aria-hidden="true" />
-                <div>
-                  <p className="text-sm font-medium">No pending approvals</p>
-                  <p className="text-xs text-muted-foreground">
-                    Run a gated scenario to see approval request, decision, and trace events here.
-                  </p>
                 </div>
-              </div>
-            )}
+              )}
 
-            <RecentDecisions decisions={decided.slice(0, 5)} />
+              {/* Loading skeleton */}
+              {isLoading ? (
+                <div className="h-16 animate-pulse rounded-xl bg-white/5" />
+              ) : pending.length > 0 ? (
+                pending.map((approval) => {
+                  const { border, bg, badge } = riskColors(approval.riskLevel);
+                  return (
+                    <div
+                      key={approval.id}
+                      className={`rounded-xl border ${border} ${bg} p-4 space-y-3`}
+                    >
+                      {/* Top row: badges + action label */}
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <StatBadge tone={badge}>{approval.riskLevel} risk</StatBadge>
+                        <span className="min-w-0 flex-1 text-sm font-semibold">
+                          {approval.requestedAction}
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground sm:ml-auto">
+                          <Clock className="h-3 w-3" />
+                          {timeAgo(approval.createdAt)}
+                        </span>
+                      </div>
+
+                      {/* Reason */}
+                      <p className="text-xs text-muted-foreground">{approval.reason}</p>
+
+                      {/* Artifact preview with expand */}
+                      <div className="min-w-0 rounded-md border border-white/8 bg-black/20 px-3 py-2">
+                        <div className="mb-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                          Artifact preview
+                        </div>
+                        <ArtifactPreview text={approval.artifactPreview} />
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="grid grid-cols-1 gap-2 pt-1 sm:flex sm:justify-end">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full border-[var(--destructive)]/40 text-[var(--destructive)] hover:bg-[var(--destructive)]/10 hover:border-[var(--destructive)]/70 sm:w-auto"
+                          onClick={() => openDialog(approval, "reject")}
+                        >
+                          <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                          Reject
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="w-full bg-[var(--emerald)] hover:bg-[var(--emerald)]/90 text-black border-0 shadow-[0_6px_20px_-8px_oklch(0.78_0.17_165/0.8)] sm:w-auto"
+                          onClick={() => openDialog(approval, "approve")}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                          Approve
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-background/45 p-3">
+                  <ShieldAlert className="h-4 w-4 text-[var(--emerald)]" aria-hidden="true" />
+                  <div>
+                    <p className="text-sm font-medium">No pending approvals</p>
+                    <p className="text-xs text-muted-foreground">
+                      Run a gated scenario to see approval request, decision, and trace events here.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <RecentDecisions decisions={decided.slice(0, 5)} />
+            </div>
           </div>
-        </div>
-      </Panel>
+        </Panel>
+      </div>
     </>
   );
 }

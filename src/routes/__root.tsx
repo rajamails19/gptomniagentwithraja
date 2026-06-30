@@ -17,6 +17,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { DemoProvider } from "@/lib/demo-context";
 import { PresentationMode } from "@/components/PresentationMode";
 import { VisualGuide } from "@/components/VisualGuide";
+import { DemoResultsModal } from "@/components/DemoResultsModal";
 
 function NotFoundComponent() {
   return (
@@ -153,6 +154,7 @@ function RootComponent() {
         </div>
         <PresentationMode />
         <VisualGuide />
+        <DemoResultsModal />
         <Toaster theme="dark" />
       </DemoProvider>
     </QueryClientProvider>

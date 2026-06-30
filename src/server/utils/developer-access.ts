@@ -10,7 +10,7 @@ export function isDeveloperPagePath(pathname: string) {
 
 export function isDeveloperAccessAllowed(request: Request, url: URL) {
   const expectedToken = process.env[DEVELOPER_API_TOKEN_ENV]?.trim();
-  if (!expectedToken) return !isProduction();
+  if (!expectedToken) return false;
 
   const providedToken =
     request.headers.get("x-developer-token") ??
@@ -43,10 +43,6 @@ export function developerAccessNotFoundResponse() {
       "cache-control": "no-store",
     },
   });
-}
-
-function isProduction() {
-  return process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
 }
 
 function timingSafeEqual(provided: string, expected: string) {
