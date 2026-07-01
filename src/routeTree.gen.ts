@@ -16,6 +16,7 @@ import { Route as PromptsRouteImport } from './routes/prompts'
 import { Route as PlannerRouteImport } from './routes/planner'
 import { Route as MonitoringRouteImport } from './routes/monitoring'
 import { Route as MemoryRouteImport } from './routes/memory'
+import { Route as GuardrailsRouteImport } from './routes/guardrails'
 import { Route as EvalsRouteImport } from './routes/evals'
 import { Route as DebuggerRouteImport } from './routes/debugger'
 import { Route as CostRouteImport } from './routes/cost'
@@ -58,6 +59,11 @@ const MonitoringRoute = MonitoringRouteImport.update({
 const MemoryRoute = MemoryRouteImport.update({
   id: '/memory',
   path: '/memory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuardrailsRoute = GuardrailsRouteImport.update({
+  id: '/guardrails',
+  path: '/guardrails',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EvalsRoute = EvalsRouteImport.update({
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/cost': typeof CostRoute
   '/debugger': typeof DebuggerRoute
   '/evals': typeof EvalsRoute
+  '/guardrails': typeof GuardrailsRoute
   '/memory': typeof MemoryRoute
   '/monitoring': typeof MonitoringRoute
   '/planner': typeof PlannerRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/cost': typeof CostRoute
   '/debugger': typeof DebuggerRoute
   '/evals': typeof EvalsRoute
+  '/guardrails': typeof GuardrailsRoute
   '/memory': typeof MemoryRoute
   '/monitoring': typeof MonitoringRoute
   '/planner': typeof PlannerRoute
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/cost': typeof CostRoute
   '/debugger': typeof DebuggerRoute
   '/evals': typeof EvalsRoute
+  '/guardrails': typeof GuardrailsRoute
   '/memory': typeof MemoryRoute
   '/monitoring': typeof MonitoringRoute
   '/planner': typeof PlannerRoute
@@ -162,6 +171,7 @@ export interface FileRouteTypes {
     | '/cost'
     | '/debugger'
     | '/evals'
+    | '/guardrails'
     | '/memory'
     | '/monitoring'
     | '/planner'
@@ -179,6 +189,7 @@ export interface FileRouteTypes {
     | '/cost'
     | '/debugger'
     | '/evals'
+    | '/guardrails'
     | '/memory'
     | '/monitoring'
     | '/planner'
@@ -196,6 +207,7 @@ export interface FileRouteTypes {
     | '/cost'
     | '/debugger'
     | '/evals'
+    | '/guardrails'
     | '/memory'
     | '/monitoring'
     | '/planner'
@@ -214,6 +226,7 @@ export interface RootRouteChildren {
   CostRoute: typeof CostRoute
   DebuggerRoute: typeof DebuggerRoute
   EvalsRoute: typeof EvalsRoute
+  GuardrailsRoute: typeof GuardrailsRoute
   MemoryRoute: typeof MemoryRoute
   MonitoringRoute: typeof MonitoringRoute
   PlannerRoute: typeof PlannerRoute
@@ -274,6 +287,13 @@ declare module '@tanstack/react-router' {
       path: '/memory'
       fullPath: '/memory'
       preLoaderRoute: typeof MemoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guardrails': {
+      id: '/guardrails'
+      path: '/guardrails'
+      fullPath: '/guardrails'
+      preLoaderRoute: typeof GuardrailsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/evals': {
@@ -342,6 +362,7 @@ const rootRouteChildren: RootRouteChildren = {
   CostRoute: CostRoute,
   DebuggerRoute: DebuggerRoute,
   EvalsRoute: EvalsRoute,
+  GuardrailsRoute: GuardrailsRoute,
   MemoryRoute: MemoryRoute,
   MonitoringRoute: MonitoringRoute,
   PlannerRoute: PlannerRoute,

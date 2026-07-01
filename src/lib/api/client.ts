@@ -2,6 +2,8 @@ import type {
   ApiApprovalRequest,
   ApiEvalReport,
   ApiFinalArtifact,
+  ApiGuardrailOverview,
+  ApiGuardrailPolicy,
   ApiMemory,
   ApiRun,
   ApiRunStatus,
@@ -11,7 +13,13 @@ import type {
   UpdateMemoryRequest,
 } from "./schemas";
 
-export type { ApiApprovalRequest, ApiEvalReport, ApiRun } from "./schemas";
+export type {
+  ApiApprovalRequest,
+  ApiEvalReport,
+  ApiGuardrailOverview,
+  ApiGuardrailPolicy,
+  ApiRun,
+} from "./schemas";
 
 export type ApiHealth = {
   ok: boolean;
@@ -361,6 +369,15 @@ export async function getEvals() {
 export async function getRunEval(id: string) {
   const data = await requestJson<{ report: ApiEvalReport }>(`/api/v1/runs/${id}/eval`);
   return data.report;
+}
+
+export async function getGuardrails() {
+  return requestJson<ApiGuardrailOverview>("/api/v1/guardrails");
+}
+
+export async function getGuardrailPolicies() {
+  const data = await requestJson<{ policies: ApiGuardrailPolicy[] }>("/api/v1/guardrails/policies");
+  return data.policies;
 }
 
 export async function getMemories() {

@@ -282,6 +282,25 @@ export function runMigrations() {
 
     create index if not exists idx_eval_checks_run
       on eval_checks (run_id);
+
+    create table if not exists guardrail_policies (
+      id text primary key,
+      name text not null,
+      category text not null check (category in ('privacy', 'security', 'tools', 'cost', 'quality', 'human_review')),
+      status text not null check (status in ('active', 'monitoring', 'disabled')),
+      mode text not null check (mode in ('monitor', 'warn', 'block')),
+      severity text not null check (severity in ('low', 'medium', 'high', 'critical')),
+      description text not null,
+      scope text not null,
+      trigger text not null,
+      action text not null,
+      source text not null,
+      created_at text not null,
+      updated_at text not null
+    );
+
+    create index if not exists idx_guardrail_policies_category_status
+      on guardrail_policies (category, status);
   `);
 
   addColumnIfMissing("trace_events", "memory_ids_json", "text");

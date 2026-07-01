@@ -4,6 +4,7 @@ export type VisualGuideRoute =
   | "/debugger"
   | "/cost"
   | "/evals"
+  | "/guardrails"
   | "/agents"
   | "/tools"
   | "/planner"
@@ -96,6 +97,15 @@ export const VISUAL_GUIDE_STEPS: VisualGuideStep[] = [
     body: "Evals prove agent outputs can be tested, scored, compared, and gated before they reach real users.",
     route: "/evals",
     selector: '[data-guide="nav-evals"]',
+    fallbackSelector: "main h1",
+    placement: "right",
+  },
+  {
+    id: "guardrails",
+    title: "Show the control layer.",
+    body: "Guardrails define what agents are allowed to do: privacy, security, tool permissions, cost limits, and human review.",
+    route: "/guardrails",
+    selector: '[data-guide="nav-guardrails"]',
     fallbackSelector: "main h1",
     placement: "right",
   },

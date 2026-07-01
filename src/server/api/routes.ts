@@ -18,6 +18,7 @@ import { adminRoutes } from "./routes/admin";
 import { approvalRoutes } from "./routes/approvals";
 import { createDeveloperRoutes } from "./routes/developer";
 import { evalRoutes } from "./routes/evals";
+import { guardrailRoutes } from "./routes/guardrails";
 import { memoryRoutes } from "./routes/memory";
 import { runRoutes } from "./routes/runs";
 import { toolRoutes } from "./routes/tools";
@@ -87,6 +88,7 @@ export const apiRoutes: ApiRoute[] = [
   },
   ...runRoutes,
   ...evalRoutes,
+  ...guardrailRoutes,
   ...memoryRoutes,
   ...approvalRoutes,
   {

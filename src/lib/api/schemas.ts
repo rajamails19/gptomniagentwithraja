@@ -150,6 +150,60 @@ export const evalReportSchema = z.object({
   checks: z.array(evalCheckSchema),
 });
 
+export const guardrailCategorySchema = z.enum([
+  "privacy",
+  "security",
+  "tools",
+  "cost",
+  "quality",
+  "human_review",
+]);
+export const guardrailModeSchema = z.enum(["monitor", "warn", "block"]);
+export const guardrailStatusSchema = z.enum(["active", "monitoring", "disabled"]);
+
+export const guardrailPolicySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  category: guardrailCategorySchema,
+  status: guardrailStatusSchema,
+  mode: guardrailModeSchema,
+  severity: evalCheckSeveritySchema,
+  description: z.string(),
+  scope: z.string(),
+  trigger: z.string(),
+  action: z.string(),
+  source: z.string(),
+  passRate: z.number(),
+  lastEvaluatedAt: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const guardrailSignalSchema = z.object({
+  id: z.string(),
+  policyId: z.string(),
+  runId: z.string(),
+  status: evalCheckStatusSchema,
+  severity: evalCheckSeveritySchema,
+  evidence: z.string(),
+  source: z.string(),
+  createdAt: z.string(),
+});
+
+export const guardrailOverviewSchema = z.object({
+  summary: z.object({
+    totalPolicies: z.number(),
+    activePolicies: z.number(),
+    blockingPolicies: z.number(),
+    warningPolicies: z.number(),
+    disabledPolicies: z.number(),
+    latestSignalAt: z.string().nullable(),
+    riskPosture: z.enum(["controlled", "watch", "blocked"]),
+  }),
+  policies: z.array(guardrailPolicySchema),
+  signals: z.array(guardrailSignalSchema),
+});
+
 export const scenarioSummarySchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -234,6 +288,12 @@ export type ApiEvalReport = z.infer<typeof evalReportSchema>;
 export type ApiEvalCheckStatus = z.infer<typeof evalCheckStatusSchema>;
 export type ApiEvalCheckSeverity = z.infer<typeof evalCheckSeveritySchema>;
 export type ApiEvalCheckCategory = z.infer<typeof evalCheckCategorySchema>;
+export type ApiGuardrailPolicy = z.infer<typeof guardrailPolicySchema>;
+export type ApiGuardrailSignal = z.infer<typeof guardrailSignalSchema>;
+export type ApiGuardrailOverview = z.infer<typeof guardrailOverviewSchema>;
+export type ApiGuardrailCategory = z.infer<typeof guardrailCategorySchema>;
+export type ApiGuardrailMode = z.infer<typeof guardrailModeSchema>;
+export type ApiGuardrailStatus = z.infer<typeof guardrailStatusSchema>;
 export type ApiScenario = z.infer<typeof scenarioSummarySchema>;
 export type ApiRun = z.infer<typeof runSchema>;
 export type ApiRunStatus = z.infer<typeof runStatusResponseSchema>;

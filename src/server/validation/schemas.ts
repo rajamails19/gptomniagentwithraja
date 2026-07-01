@@ -7,6 +7,8 @@ import {
   createMemoryRequestSchema,
   evalReportSchema,
   finalArtifactSchema,
+  guardrailOverviewSchema,
+  guardrailPolicySchema,
   memorySchema,
   runSchema,
   runStatusResponseSchema,
@@ -23,6 +25,8 @@ export {
   createMemoryRequestSchema,
   evalReportSchema,
   finalArtifactSchema,
+  guardrailOverviewSchema,
+  guardrailPolicySchema,
   memorySchema,
   runSchema,
   runStatusResponseSchema,
@@ -130,4 +134,10 @@ export const evalsResponseSchema = z.object({
 
 export const evalResponseSchema = z.object({
   report: evalReportSchema,
+});
+
+export const guardrailsResponseSchema = guardrailOverviewSchema;
+
+export const guardrailPoliciesResponseSchema = z.object({
+  policies: z.array(guardrailPolicySchema),
 });

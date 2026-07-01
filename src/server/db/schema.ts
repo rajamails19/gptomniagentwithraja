@@ -240,6 +240,24 @@ export const evalChecksTable = sqliteTable("eval_checks", {
   createdAt: text("created_at").notNull(),
 });
 
+export const guardrailPoliciesTable = sqliteTable("guardrail_policies", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  category: text("category", {
+    enum: ["privacy", "security", "tools", "cost", "quality", "human_review"],
+  }).notNull(),
+  status: text("status", { enum: ["active", "monitoring", "disabled"] }).notNull(),
+  mode: text("mode", { enum: ["monitor", "warn", "block"] }).notNull(),
+  severity: text("severity", { enum: ["low", "medium", "high", "critical"] }).notNull(),
+  description: text("description").notNull(),
+  scope: text("scope").notNull(),
+  trigger: text("trigger").notNull(),
+  action: text("action").notNull(),
+  source: text("source").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export type RunRow = typeof runsTable.$inferSelect;
 export type WorkflowStepRow = typeof workflowStepsTable.$inferSelect;
 export type TraceEventRow = typeof traceEventsTable.$inferSelect;
@@ -249,3 +267,4 @@ export type ApprovalRequestRow = typeof approvalRequestsTable.$inferSelect;
 export type PageVisitRow = typeof pageVisitsTable.$inferSelect;
 export type EvalReportRow = typeof evalReportsTable.$inferSelect;
 export type EvalCheckRow = typeof evalChecksTable.$inferSelect;
+export type GuardrailPolicyRow = typeof guardrailPoliciesTable.$inferSelect;
